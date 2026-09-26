@@ -1,0 +1,13 @@
+{
+  "name": "@restaurant/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "dependencies": {
+    "@prisma/client": "^6.0.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

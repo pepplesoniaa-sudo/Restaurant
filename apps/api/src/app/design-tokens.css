@@ -1,0 +1,491 @@
+/**
+ * DESIGN SYSTEM VARIABLES
+ * Auto-generated from design-tokens.tokens.json
+ */
+
+:root {
+  color-scheme: light;
+
+  /* ==========================================
+     PRIMITIVE COLORS
+     ------------------------------------------
+     FOUNDATION ONLY - DO NOT USE DIRECTLY IN UI.
+     These represent the raw color palette. UI components should use Color Roles instead.
+     ========================================== */
+  --primitive-colors-key-colors-group-primary-key-color: #741bcdff;
+  --primitive-colors-key-colors-group-secondary-key-color: #9f88b1ff;
+  --primitive-colors-key-colors-group-tertiary-key-color: #537aa1ff;
+  --primitive-colors-key-colors-group-neutral-key-color: #46454cff;
+  --primitive-colors-key-colors-group-neutral-variant-key-color: #a4a3a8ff;
+  --primitive-colors-key-colors-group-error-key-color: #fc1740ff;
+  --primitive-colors-key-colors-group-success-key-color: #1e9454ff;
+  --primitive-colors-key-colors-group-warning-key-color: #f2913cff;
+  --primitive-colors-primary-color-palette-primary-0: #000000ff;
+  --primitive-colors-primary-color-palette-primary10: #26113aff;
+  --primitive-colors-primary-color-palette-primary20: #431771ff;
+  --primitive-colors-primary-color-palette-primary30: #611fa5ff;
+  --primitive-colors-primary-color-palette-primary40: #741bcdff;
+  --primitive-colors-primary-color-palette-primary50: #802ed3ff;
+  --primitive-colors-primary-color-palette-primary60: #9e47f6ff;
+  --primitive-colors-primary-color-palette-primary70: #bb66ffff;
+  --primitive-colors-primary-color-palette-primary80: #d489ffff;
+  --primitive-colors-primary-color-palette-primary90: #e8afffff;
+  --primitive-colors-primary-color-palette-primary98: #fbebffff;
+  --primitive-colors-primary-color-palette-primary99: #fef7ffff;
+  --primitive-colors-primary-color-palette-primary100: #ffffffff;
+  --primitive-colors-primary-color-palette-primary95: #f6d7ffff;
+  --primitive-colors-secondary-color-palette-secondary0: #000000ff;
+  --primitive-colors-secondary-color-palette-secondary10: #1f1923ff;
+  --primitive-colors-secondary-color-palette-secondary20: #372c40ff;
+  --primitive-colors-secondary-color-palette-secondary30: #51405eff;
+  --primitive-colors-secondary-color-palette-secondary40: #6b567bff;
+  --primitive-colors-secondary-color-palette-secondary50: #856e96ff;
+  --primitive-colors-secondary-color-palette-secondary60: #9f88b1ff;
+  --primitive-colors-secondary-color-palette-secondary70: #9e88afff;
+  --primitive-colors-secondary-color-palette-secondary80: #b7a4c6ff;
+  --primitive-colors-secondary-color-palette-secondary90: #d0c1dbff;
+  --primitive-colors-secondary-color-palette-secondary95: #e8e0edff;
+  --primitive-colors-secondary-color-palette-secondary98: #f3eff6ff;
+  --primitive-colors-secondary-color-palette-secondary99: #faf9fbff;
+  --primitive-colors-secondary-color-palette-secondary100: #ffffffff;
+  --primitive-colors-tertiary-color-palette-tertiary0: #000000ff;
+  --primitive-colors-tertiary-color-palette-tertiary10: #141c26ff;
+  --primitive-colors-tertiary-color-palette-tertiary20: #1e3246ff;
+  --primitive-colors-tertiary-color-palette-tertiary30: #2a4966ff;
+  --primitive-colors-tertiary-color-palette-tertiary40: #3c6185ff;
+  --primitive-colors-tertiary-color-palette-tertiary50: #4271a0ff;
+  --primitive-colors-tertiary-color-palette-tertiary60: #537aa1ff;
+  --primitive-colors-tertiary-color-palette-tertiary70: #7094baff;
+  --primitive-colors-tertiary-color-palette-tertiary80: #91aed0ff;
+  --primitive-colors-tertiary-color-palette-tertiary90: #b4c8e2ff;
+  --primitive-colors-tertiary-color-palette-tertiary95: #d9e3f1ff;
+  --primitive-colors-tertiary-color-palette-tertiary98: #ecf1f8ff;
+  --primitive-colors-tertiary-color-palette-tertiary99: #f7f9fcff;
+  --primitive-colors-tertiary-color-palette-tertiary100: #ffffffff;
+  --primitive-colors-neutral-color-palette-neutral0: #000000ff;
+  --primitive-colors-neutral-color-palette-neutral10: #1c1b1dff;
+  --primitive-colors-neutral-color-palette-neutral20: #303034ff;
+  --primitive-colors-neutral-color-palette-neutral30: #46454cff;
+  --primitive-colors-neutral-color-palette-neutral40: #47464cff;
+  --primitive-colors-neutral-color-palette-neutral50: #5f5d64ff;
+  --primitive-colors-neutral-color-palette-neutral60: #77767eff;
+  --primitive-colors-neutral-color-palette-neutral70: #919097ff;
+  --primitive-colors-neutral-color-palette-neutral80: #abaab1ff;
+  --primitive-colors-neutral-color-palette-neutral90: #c7c6cbff;
+  --primitive-colors-neutral-color-palette-neutral95: #e2e2e5ff;
+  --primitive-colors-neutral-color-palette-neutral98: #f1f0f2ff;
+  --primitive-colors-neutral-color-palette-neutral99: #f9f9faff;
+  --primitive-colors-neutral-color-palette-neutral100: #ffffffff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-0: #000000ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-10: #1c1b1cff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-20: #303032ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-30: #47464aff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-40: #5f5e62ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-50: #77767bff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-60: #919095ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-70: #a4a3a8ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-80: #ababafff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-90: #c7c6c9ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-95: #e2e2e4ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-98: #f1f0f1ff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-99: #f9f9faff;
+  --primitive-colors-neutral-variant-color-palette-neutral-variant-100: #ffffffff;
+  --primitive-colors-error-color-palette-error-0: #000000ff;
+  --primitive-colors-error-color-palette-error10: #3b0807ff;
+  --primitive-colors-error-color-palette-error20: #6d0010ff;
+  --primitive-colors-error-color-palette-error30: #9e0018ff;
+  --primitive-colors-error-color-palette-error40: #ca0025ff;
+  --primitive-colors-error-color-palette-error50: #f00038ff;
+  --primitive-colors-error-color-palette-error60: #fc1740ff;
+  --primitive-colors-error-color-palette-error70: #ff4152ff;
+  --primitive-colors-error-color-palette-error80: #ff7273ff;
+  --primitive-colors-error-color-palette-error90: #ffa29cff;
+  --primitive-colors-error-color-palette-error95: #ffd1ccff;
+  --primitive-colors-error-color-palette-error98: #ffe8e5ff;
+  --primitive-colors-error-color-palette-error99: #fff6f4ff;
+  --primitive-colors-error-color-palette-error100: #ffffffff;
+  --primitive-colors-success-color-palette-success0: #000000ff;
+  --primitive-colors-success-color-palette-success10: #072010ff;
+  --primitive-colors-success-color-palette-success20: #003919ff;
+  --primitive-colors-success-color-palette-success30: #005425ff;
+  --primitive-colors-success-color-palette-success40: #006e35ff;
+  --primitive-colors-success-color-palette-success-50: #05894aff;
+  --primitive-colors-success-color-palette-success-60: #1e9454ff;
+  --primitive-colors-success-color-palette-success-70: #3ba365ff;
+  --primitive-colors-success-color-palette-success-80: #69bc85ff;
+  --primitive-colors-success-color-palette-success-90: #99d4aaff;
+  --primitive-colors-success-color-palette-success-95: #cbead3ff;
+  --primitive-colors-success-color-palette-success-98: #e5f5e9ff;
+  --primitive-colors-success-color-palette-success-99: #f5fbf6ff;
+  --primitive-colors-success-color-palette-success-100: #ffffffff;
+  --primitive-colors-warning-color-palette-warning0: #000000ff;
+  --primitive-colors-warning-color-palette-warning10: #2e1600ff;
+  --primitive-colors-warning-color-palette-warning20: #502400ff;
+  --primitive-colors-warning-color-palette-warning30: #743500ff;
+  --primitive-colors-warning-color-palette-warning40: #964900ff;
+  --primitive-colors-warning-color-palette-warning50: #b76000ff;
+  --primitive-colors-warning-color-palette-warning60: #d37b2aff;
+  --primitive-colors-warning-color-palette-warning70: #f2913cff;
+  --primitive-colors-warning-color-palette-warning80: #ea9855ff;
+  --primitive-colors-warning-color-palette-warning90: #fab987ff;
+  --primitive-colors-warning-color-palette-warning95: #ffdbc0ff;
+  --primitive-colors-warning-color-palette-warning98: #ffeddfff;
+  --primitive-colors-warning-color-palette-warning99: #fff8f2ff;
+  --primitive-colors-warning-color-palette-warning100: #ffffffff;
+
+  /* ==========================================
+     COLOR ROLES
+     ------------------------------------------
+     SEMANTIC COLORS - USE THESE IN UI.
+     These map to primitive colors and provide semantic meaning (e.g., primary, error, surface).
+     ========================================== */
+  --color-roles-primary: var(--primitive-colors-key-colors-group-primary-key-color);
+  --color-roles-on-primary: var(--primitive-colors-primary-color-palette-primary100);
+  --color-roles-primary-container: var(--primitive-colors-primary-color-palette-primary90);
+  --color-roles-on-primary-container: var(--primitive-colors-primary-color-palette-primary30);
+  --color-roles-secondary: var(--primitive-colors-secondary-color-palette-secondary40);
+  --color-roles-on-secondary: var(--primitive-colors-secondary-color-palette-secondary100);
+  --color-roles-secondary-container: var(--primitive-colors-secondary-color-palette-secondary90);
+  --color-roles-on-secondary-container: var(--primitive-colors-secondary-color-palette-secondary30);
+  --color-roles-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary40);
+  --color-roles-on-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary100);
+  --color-roles-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary90);
+  --color-roles-on-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary30);
+  --color-roles-neutral: var(--primitive-colors-neutral-color-palette-neutral40);
+  --color-roles-on-neutral: var(--primitive-colors-neutral-color-palette-neutral100);
+  --color-roles-neutral-container: var(--primitive-colors-neutral-color-palette-neutral90);
+  --color-roles-on-neutral-container: var(--primitive-colors-neutral-color-palette-neutral30);
+  --color-roles-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-40);
+  --color-roles-on-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-100);
+  --color-roles-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-90);
+  --color-roles-on-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-30);
+  --color-roles-error: var(--primitive-colors-error-color-palette-error40);
+  --color-roles-on-error: var(--primitive-colors-error-color-palette-error100);
+  --color-roles-error-container: var(--primitive-colors-error-color-palette-error90);
+  --color-roles-on-error-container: var(--primitive-colors-error-color-palette-error20);
+  --color-roles-success: var(--primitive-colors-success-color-palette-success40);
+  --color-roles-on-success: var(--primitive-colors-success-color-palette-success-100);
+  --color-roles-success-container: var(--primitive-colors-success-color-palette-success-90);
+  --color-roles-on-success-container: var(--primitive-colors-success-color-palette-success30);
+  --color-roles-warning: var(--primitive-colors-warning-color-palette-warning40);
+  --color-roles-on-warning: var(--primitive-colors-warning-color-palette-warning100);
+  --color-roles-warning-container: var(--primitive-colors-warning-color-palette-warning90);
+  --color-roles-on-warning-container: var(--primitive-colors-warning-color-palette-warning30);
+  /* Page ground. Separate from surface so dark mode can place cards on a black page (iPadOS); in light mode it matches surface. Hand-added: not yet in the Figma file. */
+  --color-roles-background: var(--primitive-colors-neutral-color-palette-neutral99);
+  --color-roles-surface: var(--primitive-colors-neutral-color-palette-neutral99);
+  --color-roles-on-surface: var(--primitive-colors-neutral-color-palette-neutral10);
+  --color-roles-surface-container: var(--primitive-colors-neutral-color-palette-neutral95);
+  --color-roles-on-surface-container: var(--primitive-colors-neutral-color-palette-neutral20);
+  --color-roles-surface-dim: var(--primitive-colors-neutral-color-palette-neutral90);
+  --color-roles-outline: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-50);
+  --color-roles-outline-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-80);
+
+  /* ==========================================
+     SPACING
+     ------------------------------------------
+     Layout and spacing tokens.
+     ========================================== */
+  --spacing-collection-no-spacing: 0px;
+  --spacing-collection-extra-small-spacing: 4px;
+  --spacing-collection-small-spacing: 8px;
+  --spacing-collection-medium-spacing: 12px;
+  --spacing-collection-base-spacing: 16px;
+  --spacing-collection-large-spacing: 20px;
+  --spacing-collection-extra-large-spacing: 24px;
+  --spacing-collection-very-large-spacing: 32px;
+
+  /* ==========================================
+     TYPOGRAPHY
+     ------------------------------------------
+     Font sizes, weights, and line heights.
+     ========================================== */
+  --typography-caption-fontsize: 12px;
+  --typography-caption-textdecoration: none;
+  --typography-caption-fontfamily: Inter;
+  --typography-caption-fontweight: 400;
+  --typography-caption-fontstyle: normal;
+  --typography-caption-fontstretch: normal;
+  --typography-caption-letterspacing: 0.4px;
+  --typography-caption-lineheight: 16px;
+  --typography-caption-paragraphindent: 0px;
+  --typography-caption-paragraphspacing: 4px;
+  --typography-caption-textcase: none;
+  --typography-overline-fontsize: 12px;
+  --typography-overline-textdecoration: none;
+  --typography-overline-fontfamily: Inter;
+  --typography-overline-fontweight: 500;
+  --typography-overline-fontstyle: normal;
+  --typography-overline-fontstretch: normal;
+  --typography-overline-letterspacing: 2px;
+  --typography-overline-lineheight: 16px;
+  --typography-overline-paragraphindent: 0px;
+  --typography-overline-paragraphspacing: 0px;
+  --typography-overline-textcase: uppercase;
+  --typography-display-display-large-fontsize: 96px;
+  --typography-display-display-large-textdecoration: none;
+  --typography-display-display-large-fontfamily: Lora;
+  --typography-display-display-large-fontweight: 400;
+  --typography-display-display-large-fontstyle: normal;
+  --typography-display-display-large-fontstretch: normal;
+  --typography-display-display-large-letterspacing: -1.5px;
+  --typography-display-display-large-lineheight: 115.2px;
+  --typography-display-display-large-paragraphindent: 0px;
+  --typography-display-display-large-paragraphspacing: 0px;
+  --typography-display-display-large-textcase: none;
+  --typography-display-display-medium-fontsize: 60px;
+  --typography-display-display-medium-textdecoration: none;
+  --typography-display-display-medium-fontfamily: Lora;
+  --typography-display-display-medium-fontweight: 400;
+  --typography-display-display-medium-fontstyle: normal;
+  --typography-display-display-medium-fontstretch: normal;
+  --typography-display-display-medium-letterspacing: -0.5px;
+  --typography-display-display-medium-lineheight: 72px;
+  --typography-display-display-medium-paragraphindent: 0px;
+  --typography-display-display-medium-paragraphspacing: 0px;
+  --typography-display-display-medium-textcase: none;
+  --typography-display-display-small-fontsize: 48px;
+  --typography-display-display-small-textdecoration: none;
+  --typography-display-display-small-fontfamily: Lora;
+  --typography-display-display-small-fontweight: 400;
+  --typography-display-display-small-fontstyle: normal;
+  --typography-display-display-small-fontstretch: normal;
+  --typography-display-display-small-letterspacing: 0px;
+  --typography-display-display-small-lineheight: 57.6px;
+  --typography-display-display-small-paragraphindent: 0px;
+  --typography-display-display-small-paragraphspacing: 0px;
+  --typography-display-display-small-textcase: none;
+  --typography-headline-headline-large-fontsize: 34px;
+  --typography-headline-headline-large-textdecoration: none;
+  --typography-headline-headline-large-fontfamily: Lora;
+  --typography-headline-headline-large-fontweight: 400;
+  --typography-headline-headline-large-fontstyle: normal;
+  --typography-headline-headline-large-fontstretch: normal;
+  --typography-headline-headline-large-letterspacing: 0.25px;
+  --typography-headline-headline-large-lineheight: 40.8px;
+  --typography-headline-headline-large-paragraphindent: 0px;
+  --typography-headline-headline-large-paragraphspacing: 0px;
+  --typography-headline-headline-large-textcase: none;
+  --typography-headline-headline-medium-fontsize: 24px;
+  --typography-headline-headline-medium-textdecoration: none;
+  --typography-headline-headline-medium-fontfamily: Lora;
+  --typography-headline-headline-medium-fontweight: 400;
+  --typography-headline-headline-medium-fontstyle: normal;
+  --typography-headline-headline-medium-fontstretch: normal;
+  --typography-headline-headline-medium-letterspacing: 0px;
+  --typography-headline-headline-medium-lineheight: 32px;
+  --typography-headline-headline-medium-paragraphindent: 0px;
+  --typography-headline-headline-medium-paragraphspacing: 0px;
+  --typography-headline-headline-medium-textcase: none;
+  --typography-headline-headline-small-fontsize: 20px;
+  --typography-headline-headline-small-textdecoration: none;
+  --typography-headline-headline-small-fontfamily: Lora;
+  --typography-headline-headline-small-fontweight: 400;
+  --typography-headline-headline-small-fontstyle: normal;
+  --typography-headline-headline-small-fontstretch: normal;
+  --typography-headline-headline-small-letterspacing: 0.15px;
+  --typography-headline-headline-small-lineheight: 28px;
+  --typography-headline-headline-small-paragraphindent: 0px;
+  --typography-headline-headline-small-paragraphspacing: 0px;
+  --typography-headline-headline-small-textcase: none;
+  --typography-title-title-large-fontsize: 16px;
+  --typography-title-title-large-textdecoration: none;
+  --typography-title-title-large-fontfamily: Inter;
+  --typography-title-title-large-fontweight: 500;
+  --typography-title-title-large-fontstyle: normal;
+  --typography-title-title-large-fontstretch: normal;
+  --typography-title-title-large-letterspacing: 0.1px;
+  --typography-title-title-large-lineheight: 22px;
+  --typography-title-title-large-paragraphindent: 0px;
+  --typography-title-title-large-paragraphspacing: 0px;
+  --typography-title-title-large-textcase: none;
+  --typography-title-title-small-fontsize: 14px;
+  --typography-title-title-small-textdecoration: none;
+  --typography-title-title-small-fontfamily: Inter;
+  --typography-title-title-small-fontweight: 700;
+  --typography-title-title-small-fontstyle: normal;
+  --typography-title-title-small-fontstretch: normal;
+  --typography-title-title-small-letterspacing: 0.25px;
+  --typography-title-title-small-lineheight: 22px;
+  --typography-title-title-small-paragraphindent: 0px;
+  --typography-title-title-small-paragraphspacing: 0px;
+  --typography-title-title-small-textcase: none;
+  --typography-body-body-large-regular-fontsize: 16px;
+  --typography-body-body-large-regular-textdecoration: none;
+  --typography-body-body-large-regular-fontfamily: Inter;
+  --typography-body-body-large-regular-fontweight: 400;
+  --typography-body-body-large-regular-fontstyle: normal;
+  --typography-body-body-large-regular-fontstretch: normal;
+  --typography-body-body-large-regular-letterspacing: 0.5px;
+  --typography-body-body-large-regular-lineheight: 24px;
+  --typography-body-body-large-regular-paragraphindent: 0px;
+  --typography-body-body-large-regular-paragraphspacing: 16px;
+  --typography-body-body-large-regular-textcase: none;
+  --typography-body-body-large-semi-bold-fontsize: 16px;
+  --typography-body-body-large-semi-bold-textdecoration: none;
+  --typography-body-body-large-semi-bold-fontfamily: Inter;
+  --typography-body-body-large-semi-bold-fontweight: 600;
+  --typography-body-body-large-semi-bold-fontstyle: normal;
+  --typography-body-body-large-semi-bold-fontstretch: normal;
+  --typography-body-body-large-semi-bold-letterspacing: 0.5px;
+  --typography-body-body-large-semi-bold-lineheight: 24px;
+  --typography-body-body-large-semi-bold-paragraphindent: 0px;
+  --typography-body-body-large-semi-bold-paragraphspacing: 16px;
+  --typography-body-body-large-semi-bold-textcase: none;
+  --typography-body-body-small-regular-fontsize: 14px;
+  --typography-body-body-small-regular-textdecoration: none;
+  --typography-body-body-small-regular-fontfamily: Inter;
+  --typography-body-body-small-regular-fontweight: 400;
+  --typography-body-body-small-regular-fontstyle: normal;
+  --typography-body-body-small-regular-fontstretch: normal;
+  --typography-body-body-small-regular-letterspacing: 0.25px;
+  --typography-body-body-small-regular-lineheight: 20px;
+  --typography-body-body-small-regular-paragraphindent: 0px;
+  --typography-body-body-small-regular-paragraphspacing: 8px;
+  --typography-body-body-small-regular-textcase: none;
+  --typography-body-body-small-semibold-fontsize: 14px;
+  --typography-body-body-small-semibold-textdecoration: none;
+  --typography-body-body-small-semibold-fontfamily: Inter;
+  --typography-body-body-small-semibold-fontweight: 600;
+  --typography-body-body-small-semibold-fontstyle: normal;
+  --typography-body-body-small-semibold-fontstretch: normal;
+  --typography-body-body-small-semibold-letterspacing: 0.25px;
+  --typography-body-body-small-semibold-lineheight: 20px;
+  --typography-body-body-small-semibold-paragraphindent: 0px;
+  --typography-body-body-small-semibold-paragraphspacing: 8px;
+  --typography-body-body-small-semibold-textcase: none;
+  --typography-button-button-large-fontsize: 14px;
+  --typography-button-button-large-textdecoration: none;
+  --typography-button-button-large-fontfamily: Inter;
+  --typography-button-button-large-fontweight: 700;
+  --typography-button-button-large-fontstyle: normal;
+  --typography-button-button-large-fontstretch: normal;
+  --typography-button-button-large-letterspacing: 0.75px;
+  --typography-button-button-large-lineheight: 20px;
+  --typography-button-button-large-paragraphindent: 0px;
+  --typography-button-button-large-paragraphspacing: 0px;
+  --typography-button-button-large-textcase: none;
+  --typography-button-button-small-fontsize: 12px;
+  --typography-button-button-small-textdecoration: none;
+  --typography-button-button-small-fontfamily: Inter;
+  --typography-button-button-small-fontweight: 700;
+  --typography-button-button-small-fontstyle: normal;
+  --typography-button-button-small-fontstretch: normal;
+  --typography-button-button-small-letterspacing: 0.5px;
+  --typography-button-button-small-lineheight: 20px;
+  --typography-button-button-small-paragraphindent: 0px;
+  --typography-button-button-small-paragraphspacing: 0px;
+  --typography-button-button-small-textcase: none;
+
+  /* ==========================================
+     EFFECTS
+     ------------------------------------------
+     Shadows, blurs, and other visual effects.
+     ========================================== */
+  --effect-umbra-key-shadow-hard: 4px 6px 8px 2px #00000024;
+  --effect-penumbra-key-shadow-medium: 2px 4px 6px 0px #0000001f;
+  --effect-ambient-shadow-soft: 2px 2px 20px 0px #0000001f;
+
+}
+
+/* ==========================================
+   DARK APPEARANCE
+   ------------------------------------------
+   Same --color-roles-* names with dark values. Components never reference
+   a dark token; these blocks change what the roles resolve to.
+   1. Follows the device (prefers-color-scheme) unless Light is pinned.
+   2. data-theme="dark" on <html> pins Dark whatever the device says.
+   ========================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --color-roles-primary: var(--primitive-colors-primary-color-palette-primary80);
+    --color-roles-on-primary: var(--primitive-colors-primary-color-palette-primary20);
+    --color-roles-primary-container: var(--primitive-colors-primary-color-palette-primary30);
+    --color-roles-on-primary-container: var(--primitive-colors-primary-color-palette-primary90);
+    --color-roles-secondary: var(--primitive-colors-secondary-color-palette-secondary80);
+    --color-roles-on-secondary: var(--primitive-colors-secondary-color-palette-secondary20);
+    --color-roles-secondary-container: var(--primitive-colors-secondary-color-palette-secondary30);
+    --color-roles-on-secondary-container: var(--primitive-colors-secondary-color-palette-secondary90);
+    --color-roles-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary80);
+    --color-roles-on-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary20);
+    --color-roles-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary30);
+    --color-roles-on-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary90);
+    --color-roles-neutral: var(--primitive-colors-neutral-color-palette-neutral80);
+    --color-roles-on-neutral: var(--primitive-colors-neutral-color-palette-neutral20);
+    --color-roles-neutral-container: var(--primitive-colors-neutral-color-palette-neutral30);
+    --color-roles-on-neutral-container: var(--primitive-colors-neutral-color-palette-neutral90);
+    --color-roles-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-80);
+    --color-roles-on-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-20);
+    --color-roles-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-30);
+    --color-roles-on-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-90);
+    --color-roles-error: var(--primitive-colors-error-color-palette-error80);
+    --color-roles-on-error: var(--primitive-colors-error-color-palette-error20);
+    --color-roles-error-container: var(--primitive-colors-error-color-palette-error30);
+    --color-roles-on-error-container: var(--primitive-colors-error-color-palette-error95);
+    --color-roles-success: var(--primitive-colors-success-color-palette-success-80);
+    --color-roles-on-success: var(--primitive-colors-success-color-palette-success20);
+    --color-roles-success-container: var(--primitive-colors-success-color-palette-success30);
+    --color-roles-on-success-container: var(--primitive-colors-success-color-palette-success-90);
+    --color-roles-warning: var(--primitive-colors-warning-color-palette-warning80);
+    --color-roles-on-warning: var(--primitive-colors-warning-color-palette-warning20);
+    --color-roles-warning-container: var(--primitive-colors-warning-color-palette-warning30);
+    --color-roles-on-warning-container: var(--primitive-colors-warning-color-palette-warning90);
+    /* Dark appearance, hand-added: not yet in the Figma file, so a Figma re-export drops this group unless it is added there. */
+    --color-roles-background: var(--primitive-colors-neutral-color-palette-neutral0);
+    --color-roles-surface: var(--primitive-colors-neutral-color-palette-neutral10);
+    --color-roles-on-surface: var(--primitive-colors-neutral-color-palette-neutral95);
+    --color-roles-surface-container: var(--primitive-colors-neutral-color-palette-neutral20);
+    --color-roles-on-surface-container: var(--primitive-colors-neutral-color-palette-neutral95);
+    --color-roles-surface-dim: var(--primitive-colors-neutral-color-palette-neutral0);
+    --color-roles-outline: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-60);
+    --color-roles-outline-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-30);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-roles-primary: var(--primitive-colors-primary-color-palette-primary80);
+  --color-roles-on-primary: var(--primitive-colors-primary-color-palette-primary20);
+  --color-roles-primary-container: var(--primitive-colors-primary-color-palette-primary30);
+  --color-roles-on-primary-container: var(--primitive-colors-primary-color-palette-primary90);
+  --color-roles-secondary: var(--primitive-colors-secondary-color-palette-secondary80);
+  --color-roles-on-secondary: var(--primitive-colors-secondary-color-palette-secondary20);
+  --color-roles-secondary-container: var(--primitive-colors-secondary-color-palette-secondary30);
+  --color-roles-on-secondary-container: var(--primitive-colors-secondary-color-palette-secondary90);
+  --color-roles-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary80);
+  --color-roles-on-tertiary: var(--primitive-colors-tertiary-color-palette-tertiary20);
+  --color-roles-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary30);
+  --color-roles-on-tertiary-container: var(--primitive-colors-tertiary-color-palette-tertiary90);
+  --color-roles-neutral: var(--primitive-colors-neutral-color-palette-neutral80);
+  --color-roles-on-neutral: var(--primitive-colors-neutral-color-palette-neutral20);
+  --color-roles-neutral-container: var(--primitive-colors-neutral-color-palette-neutral30);
+  --color-roles-on-neutral-container: var(--primitive-colors-neutral-color-palette-neutral90);
+  --color-roles-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-80);
+  --color-roles-on-neutral-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-20);
+  --color-roles-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-30);
+  --color-roles-on-neutral-variant-container: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-90);
+  --color-roles-error: var(--primitive-colors-error-color-palette-error80);
+  --color-roles-on-error: var(--primitive-colors-error-color-palette-error20);
+  --color-roles-error-container: var(--primitive-colors-error-color-palette-error30);
+  --color-roles-on-error-container: var(--primitive-colors-error-color-palette-error95);
+  --color-roles-success: var(--primitive-colors-success-color-palette-success-80);
+  --color-roles-on-success: var(--primitive-colors-success-color-palette-success20);
+  --color-roles-success-container: var(--primitive-colors-success-color-palette-success30);
+  --color-roles-on-success-container: var(--primitive-colors-success-color-palette-success-90);
+  --color-roles-warning: var(--primitive-colors-warning-color-palette-warning80);
+  --color-roles-on-warning: var(--primitive-colors-warning-color-palette-warning20);
+  --color-roles-warning-container: var(--primitive-colors-warning-color-palette-warning30);
+  --color-roles-on-warning-container: var(--primitive-colors-warning-color-palette-warning90);
+  /* Dark appearance, hand-added: not yet in the Figma file, so a Figma re-export drops this group unless it is added there. */
+  --color-roles-background: var(--primitive-colors-neutral-color-palette-neutral0);
+  --color-roles-surface: var(--primitive-colors-neutral-color-palette-neutral10);
+  --color-roles-on-surface: var(--primitive-colors-neutral-color-palette-neutral95);
+  --color-roles-surface-container: var(--primitive-colors-neutral-color-palette-neutral20);
+  --color-roles-on-surface-container: var(--primitive-colors-neutral-color-palette-neutral95);
+  --color-roles-surface-dim: var(--primitive-colors-neutral-color-palette-neutral0);
+  --color-roles-outline: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-60);
+  --color-roles-outline-variant: var(--primitive-colors-neutral-variant-color-palette-neutral-variant-30);
+}

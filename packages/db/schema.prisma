@@ -1,0 +1,86 @@
+// Built from the data design in README.md ("Fields"). Change the README first.
+// Every id is a cuid, never an autoincrement. Every money field is Int kobo.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+model Restaurant {
+  id          String   @id @default(cuid())
+  name        String
+  area        String
+  cuisine     String
+  rating      Decimal? @db.Decimal(2, 1) // 0.0–5.0, typed in by hand; null = no rating yet
+  deliveryFee Int // kobo
+
+  menuItems MenuItem[]
+  orders    Order[]
+}
+
+model MenuItem {
+  id           String  @id @default(cuid())
+  restaurantId String
+  name         String
+  category     String
+  price        Int // kobo
+  available    Boolean @default(true)
+
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
+  orderItems OrderItem[]
+
+  @@index([restaurantId])
+}
+
+model Customer {
+  id    String @id @default(cuid())
+  name  String
+  phone String @unique // +234… format
+  area  String
+
+  orders Order[]
+}
+
+model Order {
+  id           String      @id @default(cuid())
+  customerId   String
+  restaurantId String
+  status       OrderStatus @default(PENDING)
+  total        Int // kobo, computed on the server
+  createdAt    DateTime    @default(now())
+
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
+  items      OrderItem[]
+
+  @@index([customerId])
+  @@index([restaurantId])
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  unitPrice  Int // kobo, copied from MenuItem.price when the order is placed
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  // Restrict: a menu item on a past order is hidden (available = false), never deleted.
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
