@@ -211,5 +211,11 @@ packages/contracts/  Shared TypeScript types / zod schemas for API payloads
 npm install                 # once, at the root — this is an npm workspace
 cp .env.example .env        # then set DATABASE_URL
 npx prisma migrate dev      # creates the tables from packages/db/schema.prisma
+npm run db:seed             # optional: loads a few hundred realistic rows per resource
 npm run dev                 # http://localhost:3002
 ```
+
+`db:seed` (in `packages/db/seed/`) **clears all five tables** and reloads them in one
+transaction, so it is safe to run as often as you like on a development database and never
+creates duplicates. It refuses to run when `NODE_ENV=production`. The data is generated with
+Faker from a fixed seed; nothing is loaded from a dump.
