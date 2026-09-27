@@ -1,5 +1,7 @@
 import type { PlacedOrderView, PlaceOrderInput } from '@restaurant/contracts';
 import { db } from '@/lib/db';
+import { hashToken } from '@/lib/secret-token';
+import { generateTrackingToken } from '@/lib/tracking-token';
 import { priceOrder, type OrderRejection } from './price-order';
 
 export type PlaceOrderResult =
@@ -40,8 +42,12 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       select: { id: true },
     });
 
+    // The customer's only way to check on this order later; only its hash is kept.
+    const trackingToken = generateTrackingToken();
+
     const order = await tx.order.create({
       data: {
+        trackingTokenHash: hashToken(trackingToken),
         customerId: customer.id,
         restaurantId: restaurant.id,
         total: priced.order.total,
@@ -57,6 +63,9 @@ export async function placeOrder(input: PlaceOrderInput): Promise<PlaceOrderResu
       },
     });
 
-    return { ok: true, order: { ...order, createdAt: order.createdAt.toISOString() } };
+    return {
+      ok: true,
+      order: { ...order, createdAt: order.createdAt.toISOString(), trackingToken },
+    };
   });
 }

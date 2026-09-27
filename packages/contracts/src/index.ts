@@ -187,7 +187,15 @@ export type PlacedOrderView = {
     /** Kobo, copied from the menu item's price when the order was placed. */
     unitPrice: number;
   }[];
+  /**
+   * The only way for the customer to check on this order later (README, Tracking an order).
+   * Returned once, here; only its hash is stored.
+   */
+  trackingToken: string;
 };
+
+/** An order as the customer who placed it sees it, by tracking token. No customer data. */
+export type TrackedOrderView = Omit<OrderView, 'customer'>;
 
 /** An order as its restaurant's own staff see it. */
 export type OrderView = {

@@ -11,6 +11,7 @@ const listOrders = vi.fn();
 const getOrder = vi.fn();
 const changeOrderStatus = vi.fn();
 const cancelOrder = vi.fn();
+const getTrackedOrder = vi.fn();
 const authenticateStaff = vi.fn();
 const authenticateOptionalStaff = vi.fn();
 
@@ -28,6 +29,7 @@ vi.mock('@/modules/orders/staff-orders', () => ({
   changeOrderStatus,
   cancelOrder,
 }));
+vi.mock('@/modules/orders/tracking', () => ({ getTrackedOrder }));
 vi.mock('@/modules/restaurants/staff-auth', () => ({
   authenticateStaff,
   authenticateOptionalStaff,
@@ -524,5 +526,52 @@ describe('status change messages', () => {
     expect((await res.json()).error.message).toBe(
       "The order is already CANCELLED and can't change",
     );
+  });
+});
+
+describe('GET /api/v1/orders/{id} with a tracking token', () => {
+  const token = 'otk_' + 'A'.repeat(43);
+  const ctx = params({ orderId });
+  const withToken = (method = 'GET') =>
+    new Request('http://localhost/api/v1/orders/x', {
+      method,
+      headers: { authorization: `Bearer ${token}` },
+      ...(method === 'PATCH' ? { body: JSON.stringify({ status: 'CANCELLED' }) } : {}),
+    });
+
+  it('returns the order to its customer without asking for a staff key', async () => {
+    getTrackedOrder.mockResolvedValue({ id: orderId, status: 'PREPARING' });
+
+    const res = await orderRoute.GET(withToken(), ctx);
+
+    expect(await res.json()).toEqual({ data: { id: orderId, status: 'PREPARING' } });
+    expect(getTrackedOrder).toHaveBeenCalledExactlyOnceWith(orderId, token);
+    expect(authenticateStaff).not.toHaveBeenCalled();
+    expect(getOrder).not.toHaveBeenCalled();
+  });
+
+  it('answers a wrong token exactly like a missing order', async () => {
+    getTrackedOrder.mockResolvedValue(null);
+
+    expect(await expectError(await orderRoute.GET(withToken(), ctx), 404, 'NOT_FOUND')).toBe(
+      'Order not found',
+    );
+  });
+
+  it('cannot change or cancel the order', async () => {
+    // A tracking token is not a staff key, so staff authentication fails.
+    authenticateStaff.mockResolvedValue(null);
+
+    await expectError(await orderRoute.PATCH(withToken('PATCH'), ctx), 401, 'UNAUTHORIZED');
+    await expectError(await orderRoute.DELETE(withToken('DELETE'), ctx), 401, 'UNAUTHORIZED');
+    expect(changeOrderStatus).not.toHaveBeenCalled();
+    expect(cancelOrder).not.toHaveBeenCalled();
+  });
+
+  it('cannot list orders', async () => {
+    authenticateStaff.mockResolvedValue(null);
+
+    await expectError(await ordersRoute.GET(withToken()), 401, 'UNAUTHORIZED');
+    expect(listOrders).not.toHaveBeenCalled();
   });
 });

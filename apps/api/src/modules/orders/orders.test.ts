@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { hashToken } from '@/lib/secret-token';
 
 const tx = {
   restaurant: { findUnique: vi.fn() },
@@ -45,6 +46,7 @@ describe('placeOrder', () => {
       restaurantId,
       total: 850000, // 350000 × 2 + 150000 delivery
       items: { create: [{ menuItemId: jollofId, quantity: 2, unitPrice: 350000 }] },
+      trackingTokenHash: expect.stringMatching(/^[0-9a-f]{64}$/),
     });
   });
 
@@ -69,6 +71,7 @@ describe('placeOrder', () => {
         total: 850000,
         createdAt: '2026-09-26T10:00:00.000Z',
         items: [{ menuItemId: jollofId, quantity: 2, unitPrice: 350000 }],
+        trackingToken: expect.stringMatching(/^otk_[A-Za-z0-9_-]{43}$/),
       },
     });
   });
@@ -103,5 +106,23 @@ describe('placeOrder', () => {
     });
     expect(tx.customer.upsert).not.toHaveBeenCalled();
     expect(tx.order.create).not.toHaveBeenCalled();
+  });
+});
+
+describe('placeOrder tracking token', () => {
+  it('stores only the hash of the token it hands back', async () => {
+    const result = await placeOrder(input);
+    if (!result.ok) throw new Error('expected an order');
+
+    const stored = tx.order.create.mock.calls[0]?.[0].data.trackingTokenHash;
+    expect(stored).toBe(hashToken(result.order.trackingToken));
+    expect(JSON.stringify(tx.order.create.mock.calls)).not.toContain(result.order.trackingToken);
+  });
+
+  it('gives every order a different token', async () => {
+    const a = await placeOrder(input);
+    const b = await placeOrder(input);
+
+    expect(a.ok && b.ok && a.order.trackingToken !== b.order.trackingToken).toBe(true);
   });
 });

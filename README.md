@@ -81,14 +81,15 @@ Every field is **required** unless marked optional. Types are the Prisma types t
 
 ### Order
 
-| Field        | Type          | Required | Notes                                                        |
-| ------------ | ------------- | -------- | ------------------------------------------------------------ |
-| id           | `String`      | yes      | Generated cuid                                               |
-| customerId   | `String`      | yes      | → Customer.id                                                |
-| restaurantId | `String`      | yes      | → Restaurant.id                                              |
-| status       | `OrderStatus` | yes      | Enum, defaults to `PENDING` — see below                      |
-| total        | `Int`         | yes      | **Kobo.** Worked out on the server, never sent by the client |
-| createdAt    | `DateTime`    | yes      | Set by the database when the row is created                  |
+| Field             | Type          | Required | Notes                                                                                                                                                     |
+| ----------------- | ------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| id                | `String`      | yes      | Generated cuid                                                                                                                                            |
+| customerId        | `String`      | yes      | → Customer.id                                                                                                                                             |
+| restaurantId      | `String`      | yes      | → Restaurant.id                                                                                                                                           |
+| status            | `OrderStatus` | yes      | Enum, defaults to `PENDING` — see below                                                                                                                   |
+| total             | `Int`         | yes      | **Kobo.** Worked out on the server, never sent by the client                                                                                              |
+| createdAt         | `DateTime`    | yes      | Set by the database when the row is created                                                                                                               |
+| trackingTokenHash | `String`      | optional | SHA-256 hash of the order's tracking token — see [Tracking an order](#tracking-an-order). Never returned. Empty for orders placed before tracking existed |
 
 ### OrderItem
 
@@ -173,9 +174,29 @@ that is designed:
 - **Phone must already be in `+234` format:** `+234` followed by 10 digits, e.g.
   `+2348031234567`. Any other format is rejected, not converted.
 - **Only a restaurant's own staff read, change or cancel its orders, or change its menu.** See
-  [Restaurant staff access](#restaurant-staff-access). Nobody else can read an order.
+  [Restaurant staff access](#restaurant-staff-access).
+- **A customer can read one order: the one they placed**, using its tracking token. See
+  [Tracking an order](#tracking-an-order). Nobody else can read an order.
 - **Customers have no endpoints of their own.** A customer list would hand out phone numbers
   (rule G), so `Customer` is only ever reached through a restaurant's own orders.
+
+### Tracking an order
+
+A customer checks on their order with the order's **tracking token**: a long random secret
+returned once, as `trackingToken`, in the response to `POST /api/v1/orders`.
+
+- **It unlocks one order, for reading only.** Sent as `Authorization: Bearer <token>` to
+  `GET /api/v1/orders/{id}`, it returns that order's status, total, time and items. It can't
+  change or cancel the order, list orders, or read any other order.
+- **No customer data comes back**, not even the customer's own name or phone: the caller
+  already knows them, and a leaked token then leaks nothing personal.
+- **A wrong token looks like a missing order** (`404`), so a token can't be used to learn
+  whether some other order id exists.
+- **Only a hash is stored** (`Order.trackingTokenHash`). A lost token can't be recovered or
+  reissued; the restaurant can still see the order.
+- **Header, not URL.** A token in a link would end up in browser history, logs and referrers.
+- Orders placed before tracking existed (including all seed data) have no token and can't be
+  tracked.
 
 ### Restaurant staff access
 
@@ -221,19 +242,19 @@ Every path starts with **`/api/v1/`**. Versioning from the first release means a
 incompatible change ships as `/api/v2/` while `/api/v1/` keeps working for existing clients.
 Resources are plural nouns and the HTTP method carries the verb.
 
-| Method and path                      | Who                                                   | Does                                                                                 |
-| ------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `GET /api/v1/restaurants`            | anyone                                                | Lists restaurants                                                                    |
-| `GET /api/v1/restaurants/{id}`       | anyone                                                | One restaurant                                                                       |
-| `GET /api/v1/restaurants/{id}/menu`  | anyone; that restaurant's staff also see hidden items | Lists the restaurant's menu items                                                    |
-| `POST /api/v1/restaurants/{id}/menu` | staff of that restaurant                              | Adds a menu item (`name`, `category`, `price`); it starts available                  |
-| `GET /api/v1/menu-items/{id}`        | anyone; a hidden item only to its own staff           | One menu item                                                                        |
-| `PATCH /api/v1/menu-items/{id}`      | staff of its restaurant                               | Changes `name`, `category`, `price` and/or `available`                               |
-| `POST /api/v1/orders`                | anyone                                                | Places an order                                                                      |
-| `GET /api/v1/orders`                 | staff                                                 | Lists their restaurant's orders                                                      |
-| `GET /api/v1/orders/{id}`            | staff of its restaurant                               | One order, with its items and customer                                               |
-| `PATCH /api/v1/orders/{id}`          | staff of its restaurant                               | Moves `status` one step (see [Order status](#order-status)); nothing else can change |
-| `DELETE /api/v1/orders/{id}`         | staff of its restaurant                               | Cancels the order; allowed until it is out for delivery                              |
+| Method and path                      | Who                                                              | Does                                                                                 |
+| ------------------------------------ | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GET /api/v1/restaurants`            | anyone                                                           | Lists restaurants                                                                    |
+| `GET /api/v1/restaurants/{id}`       | anyone                                                           | One restaurant                                                                       |
+| `GET /api/v1/restaurants/{id}/menu`  | anyone; that restaurant's staff also see hidden items            | Lists the restaurant's menu items                                                    |
+| `POST /api/v1/restaurants/{id}/menu` | staff of that restaurant                                         | Adds a menu item (`name`, `category`, `price`); it starts available                  |
+| `GET /api/v1/menu-items/{id}`        | anyone; a hidden item only to its own staff                      | One menu item                                                                        |
+| `PATCH /api/v1/menu-items/{id}`      | staff of its restaurant                                          | Changes `name`, `category`, `price` and/or `available`                               |
+| `POST /api/v1/orders`                | anyone                                                           | Places an order; the response includes its tracking token, shown only this once      |
+| `GET /api/v1/orders`                 | staff                                                            | Lists their restaurant's orders                                                      |
+| `GET /api/v1/orders/{id}`            | staff of its restaurant, or the customer with its tracking token | One order. Staff also see the customer; the customer sees only the order             |
+| `PATCH /api/v1/orders/{id}`          | staff of its restaurant                                          | Moves `status` one step (see [Order status](#order-status)); nothing else can change |
+| `DELETE /api/v1/orders/{id}`         | staff of its restaurant                                          | Cancels the order; allowed until it is out for delivery                              |
 
 ### Responses
 
@@ -287,13 +308,11 @@ Every list endpoint takes the same parameters:
 
 ## Open questions
 
-1. **How does a customer check on an order after placing it?** This needs customer sign-in or a
-   secret per-order link. It is not decided yet. Until then, the only customer data the API
-   returns is the response to the order the caller just placed, and, to a restaurant's own
-   staff, the customers of its own orders.
-   **Known gap:** because orders find their customer by phone, anyone who types a stranger's
-   number attaches orders to that stranger's record. That is harmless while no customer can read
-   order history, but it must be closed (e.g. by confirming the phone) before one can.
+1. **Known gap: anyone can place an order under a stranger's phone number.** Orders find their
+   customer by phone, so typing someone else's number attaches the order to their record. That
+   is harmless today because no customer can read an order history, only single orders by
+   token. It must be closed (e.g. by confirming the phone) before order history becomes
+   readable.
 
 ## What's in this repository
 

@@ -1,6 +1,7 @@
 import { OrderIdParams, OrderUpdateInput } from '@restaurant/contracts';
 import { conflict, invalid, notFound, ok, readJson, serverError, unauthorized } from '@/lib/http';
 import { log } from '@/lib/log';
+import { parseTrackingToken } from '@/lib/tracking-token';
 import { isFinal } from '@/modules/orders/order-status';
 import {
   cancelOrder,
@@ -8,9 +9,12 @@ import {
   getOrder,
   type ChangeStatusResult,
 } from '@/modules/orders/staff-orders';
+import { getTrackedOrder } from '@/modules/orders/tracking';
 import { authenticateStaff } from '@/modules/restaurants/staff-auth';
 
-// Staff only, and only their own restaurant's orders: another restaurant's order is a 404.
+// Staff reach their own restaurant's orders; another restaurant's order is a 404. A customer may
+// also GET the one order their tracking token belongs to (README, Tracking an order), but can't
+// change or cancel it.
 
 type Ctx = RouteContext<'/api/v1/orders/[orderId]'>;
 
@@ -33,7 +37,17 @@ function statusResponse(result: ChangeStatusResult): Response {
 
 export async function GET(req: Request, ctx: Ctx): Promise<Response> {
   try {
-    const staff = await authenticateStaff(req.headers.get('authorization'));
+    const authorization = req.headers.get('authorization');
+    const trackingToken = parseTrackingToken(authorization);
+    if (trackingToken !== null) {
+      const params = OrderIdParams.safeParse(await ctx.params);
+      if (!params.success) return invalid(params.error);
+
+      const order = await getTrackedOrder(params.data.orderId, trackingToken);
+      return order === null ? notFound('Order not found') : ok(order);
+    }
+
+    const staff = await authenticateStaff(authorization);
     if (staff === null) return unauthorized();
 
     const params = OrderIdParams.safeParse(await ctx.params);

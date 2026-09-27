@@ -57,12 +57,14 @@ model Customer {
 }
 
 model Order {
-  id           String      @id @default(cuid())
-  customerId   String
-  restaurantId String
-  status       OrderStatus @default(PENDING)
-  total        Int // kobo, computed on the server
-  createdAt    DateTime    @default(now())
+  id                String      @id @default(cuid())
+  customerId        String
+  restaurantId      String
+  status            OrderStatus @default(PENDING)
+  total             Int // kobo, computed on the server
+  createdAt         DateTime    @default(now())
+  // SHA-256 of the order's tracking token; the token itself is never stored. null = not trackable.
+  trackingTokenHash String?
 
   customer   Customer    @relation(fields: [customerId], references: [id])
   restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
