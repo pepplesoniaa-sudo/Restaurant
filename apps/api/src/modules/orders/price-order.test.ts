@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_KOBO } from './order-total';
-import { priceOrder, type MenuItemForPricing, type RequestedLine } from './price-order';
+import {
+  describeRejection,
+  priceOrder,
+  type MenuItemForPricing,
+  type OrderRejection,
+  type RequestedLine,
+} from './price-order';
 
 const restaurantId = 'clrest000000000000000000a';
 const otherRestaurantId = 'clrest000000000000000000b';
@@ -135,5 +141,24 @@ describe('priceOrder', () => {
     });
 
     expect(result.ok && result.order.total).toBe(MAX_KOBO);
+  });
+});
+
+describe('describeRejection', () => {
+  const menuItemId = 'clitem00000000000000jollof';
+  const rejections: OrderRejection[] = [
+    { reason: 'NO_ITEMS' },
+    { reason: 'INVALID_QUANTITY', menuItemId },
+    { reason: 'DUPLICATE_ITEM', menuItemId },
+    { reason: 'ITEM_NOT_FOUND', menuItemId },
+    { reason: 'ITEM_FROM_OTHER_RESTAURANT', menuItemId },
+    { reason: 'ITEM_UNAVAILABLE', menuItemId },
+    { reason: 'TOTAL_TOO_LARGE' },
+  ];
+
+  it.each(rejections)('explains $reason', (rejection) => {
+    const message = describeRejection(rejection);
+    expect(message.length).toBeGreaterThan(10);
+    if ('menuItemId' in rejection) expect(message).toContain(menuItemId);
   });
 });

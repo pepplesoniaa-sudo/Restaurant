@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
-import type { RestaurantListQuery, RestaurantPage, RestaurantView } from '@restaurant/contracts';
+import type { ListEnvelope, RestaurantListQuery, RestaurantView } from '@restaurant/contracts';
 import { db } from '@/lib/db';
-import { pageArgs, toPage } from '@/lib/pagination';
+import { pageArgs, toList } from '@/lib/pagination';
 
 // Restaurants hold no personal data, so they are public to read (README, Access).
 
@@ -28,14 +28,43 @@ export function toRestaurantView(row: RestaurantRow): RestaurantView {
   };
 }
 
-export async function listRestaurants(query: RestaurantListQuery): Promise<RestaurantPage> {
-  const rows = await db.restaurant.findMany({
-    select: restaurantSelect,
-    // id breaks ties between equal names, so every row has one fixed place in the order.
-    orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    ...pageArgs(query),
-  });
-  return toPage(rows, query.limit, toRestaurantView);
+export function restaurantWhere(query: RestaurantListQuery): Prisma.RestaurantWhereInput {
+  return {
+    ...(query.area === undefined ? {} : { area: { equals: query.area, mode: 'insensitive' } }),
+    ...(query.cuisine === undefined
+      ? {}
+      : { cuisine: { equals: query.cuisine, mode: 'insensitive' } }),
+    ...(query.minRating === undefined ? {} : { rating: { gte: query.minRating } }),
+    ...(query.maxDeliveryFee === undefined ? {} : { deliveryFee: { lte: query.maxDeliveryFee } }),
+  };
+}
+
+export function restaurantOrderBy(
+  query: RestaurantListQuery,
+): Prisma.RestaurantOrderByWithRelationInput[] {
+  const first: Prisma.RestaurantOrderByWithRelationInput =
+    query.sort === 'rating'
+      ? // "No rating yet" is not a low score, so it always goes last.
+        { rating: { sort: query.order, nulls: 'last' } }
+      : { [query.sort]: query.order };
+  // id breaks ties, so every row has one fixed place and pages don't overlap.
+  return [first, { id: 'asc' }];
+}
+
+export async function listRestaurants(
+  query: RestaurantListQuery,
+): Promise<ListEnvelope<RestaurantView>> {
+  const where = restaurantWhere(query);
+  const [total, rows] = await db.$transaction([
+    db.restaurant.count({ where }),
+    db.restaurant.findMany({
+      where,
+      select: restaurantSelect,
+      orderBy: restaurantOrderBy(query),
+      ...pageArgs(query),
+    }),
+  ]);
+  return toList(rows, total, query, toRestaurantView);
 }
 
 export async function getRestaurant(restaurantId: string): Promise<RestaurantView | null> {

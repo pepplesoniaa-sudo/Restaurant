@@ -1,23 +1,37 @@
 import { OrderStatus } from '@prisma/client';
+import { OrderListQuery } from '@restaurant/contracts';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const order = {
+  count: vi.fn(),
   findMany: vi.fn(),
   findFirst: vi.fn(),
   updateMany: vi.fn(),
   findUniqueOrThrow: vi.fn(),
 };
-vi.mock('@/lib/db', () => ({ db: { order } }));
+vi.mock('@/lib/db', () => ({
+  db: { order, $transaction: (queries: Promise<unknown>[]) => Promise.all(queries) },
+}));
 
-const { changeOrderStatus, getStaffOrder, listStaffOrders, toStaffOrderView } =
-  await import('./staff-orders');
+const {
+  cancelOrder,
+  changeOrderStatus,
+  getOrder,
+  listOrders,
+  orderOrderBy,
+  orderWhere,
+  toOrderView,
+} = await import('./staff-orders');
 
-const staff = { restaurantId: 'clrest000000000000000000a' };
+const restaurantId = 'clrest000000000000000000a';
+const staff = { restaurantId };
 const orderId = 'clorder000000000000000000';
+const query = (params: Record<string, string> = {}) => OrderListQuery.parse(params);
 
 function row(status: OrderStatus) {
   return {
     id: orderId,
+    restaurantId,
     status,
     total: 850000,
     createdAt: new Date('2026-09-26T10:00:00.000Z'),
@@ -37,10 +51,11 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('toStaffOrderView', () => {
-  it('shapes the order with the item names', () => {
-    expect(toStaffOrderView(row(OrderStatus.PENDING))).toEqual({
+describe('toOrderView', () => {
+  it('shapes the order with item names', () => {
+    expect(toOrderView(row(OrderStatus.PENDING))).toEqual({
       id: orderId,
+      restaurantId,
       status: 'PENDING',
       total: 850000,
       createdAt: '2026-09-26T10:00:00.000Z',
@@ -64,51 +79,60 @@ describe('toStaffOrderView', () => {
     [OrderStatus.DELIVERED, null],
     [OrderStatus.CANCELLED, null],
   ])('shows the phone for a %s order: %s', (status, phone) => {
-    expect(toStaffOrderView(row(status)).customer.phone).toBe(phone);
+    expect(toOrderView(row(status)).customer.phone).toBe(phone);
   });
 });
 
-describe('listStaffOrders', () => {
-  it("only ever reads the staff member's own restaurant", async () => {
-    order.findMany.mockResolvedValue([]);
-
-    await listStaffOrders(staff, { limit: 20 });
-
-    expect(order.findMany.mock.calls[0]?.[0].where).toEqual({ restaurantId: staff.restaurantId });
+describe('orderWhere', () => {
+  it("is always limited to the staff member's restaurant", () => {
+    expect(orderWhere(staff, query())).toEqual({ restaurantId });
   });
 
-  it('filters by status when asked', async () => {
-    order.findMany.mockResolvedValue([]);
-
-    await listStaffOrders(staff, { limit: 20, status: OrderStatus.PENDING });
-
-    expect(order.findMany.mock.calls[0]?.[0].where).toEqual({
-      restaurantId: staff.restaurantId,
-      status: OrderStatus.PENDING,
+  it('filters by status and a createdAt range', () => {
+    expect(
+      orderWhere(
+        staff,
+        query({ status: 'PENDING', from: '2026-09-01', to: '2026-09-30T23:59:59Z' }),
+      ),
+    ).toEqual({
+      restaurantId,
+      status: 'PENDING',
+      createdAt: { gte: new Date('2026-09-01'), lte: new Date('2026-09-30T23:59:59Z') },
     });
   });
+});
 
-  it('lists newest first', async () => {
-    order.findMany.mockResolvedValue([]);
+describe('orderOrderBy', () => {
+  it('defaults to newest first', () => {
+    expect(orderOrderBy(query())).toEqual([{ createdAt: 'desc' }, { id: 'desc' }]);
+  });
 
-    await listStaffOrders(staff, { limit: 20 });
-
-    expect(order.findMany.mock.calls[0]?.[0].orderBy).toEqual([
-      { createdAt: 'desc' },
-      { id: 'desc' },
+  it('sorts by total', () => {
+    expect(orderOrderBy(query({ sort: 'total', order: 'asc' }))).toEqual([
+      { total: 'asc' },
+      { id: 'asc' },
     ]);
   });
 });
 
-describe('getStaffOrder', () => {
+describe('listOrders', () => {
+  it('returns a page with the total count', async () => {
+    order.count.mockResolvedValue(41);
+    order.findMany.mockResolvedValue([row(OrderStatus.PENDING)]);
+
+    const page = await listOrders(staff, query({ limit: '20', offset: '40' }));
+
+    expect(page.meta).toEqual({ total: 41, limit: 20, offset: 40, hasMore: false });
+    expect(order.count.mock.calls[0]?.[0].where).toEqual({ restaurantId });
+  });
+});
+
+describe('getOrder', () => {
   it("returns null for another restaurant's order", async () => {
     order.findFirst.mockResolvedValue(null);
 
-    expect(await getStaffOrder(staff, orderId)).toBeNull();
-    expect(order.findFirst.mock.calls[0]?.[0].where).toEqual({
-      id: orderId,
-      restaurantId: staff.restaurantId,
-    });
+    expect(await getOrder(staff, orderId)).toBeNull();
+    expect(order.findFirst.mock.calls[0]?.[0].where).toEqual({ id: orderId, restaurantId });
   });
 });
 
@@ -148,7 +172,7 @@ describe('changeOrderStatus', () => {
     await changeOrderStatus(staff, orderId, OrderStatus.CONFIRMED);
 
     expect(order.updateMany).toHaveBeenCalledExactlyOnceWith({
-      where: { id: orderId, restaurantId: staff.restaurantId, status: OrderStatus.PENDING },
+      where: { id: orderId, restaurantId, status: OrderStatus.PENDING },
       data: { status: OrderStatus.CONFIRMED },
     });
   });
@@ -162,15 +186,24 @@ describe('changeOrderStatus', () => {
       reason: 'STATUS_CHANGED',
     });
   });
+});
 
-  it('returns the moved order, with the phone hidden once it is delivered', async () => {
-    order.findFirst.mockResolvedValue({ status: OrderStatus.OUT_FOR_DELIVERY });
+describe('cancelOrder', () => {
+  it('moves the order to CANCELLED and keeps it', async () => {
+    order.findFirst.mockResolvedValue({ status: OrderStatus.PREPARING });
     order.updateMany.mockResolvedValue({ count: 1 });
-    order.findUniqueOrThrow.mockResolvedValue(row(OrderStatus.DELIVERED));
+    order.findUniqueOrThrow.mockResolvedValue(row(OrderStatus.CANCELLED));
 
-    const result = await changeOrderStatus(staff, orderId, OrderStatus.DELIVERED);
+    const result = await cancelOrder(staff, orderId);
 
-    expect(result.ok && result.order.status).toBe('DELIVERED');
-    expect(result.ok && result.order.customer.phone).toBeNull();
+    expect(order.updateMany.mock.calls[0]?.[0].data).toEqual({ status: OrderStatus.CANCELLED });
+    expect(result.ok && result.order.status).toBe('CANCELLED');
+  });
+
+  it('refuses once the order is out for delivery', async () => {
+    order.findFirst.mockResolvedValue({ status: OrderStatus.OUT_FOR_DELIVERY });
+
+    expect((await cancelOrder(staff, orderId)).ok).toBe(false);
+    expect(order.updateMany).not.toHaveBeenCalled();
   });
 });

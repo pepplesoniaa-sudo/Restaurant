@@ -1,5 +1,8 @@
-// Response helpers shared by every route. Error bodies are generic on purpose: details go to the
-// log, never to the caller (.agents/rules/security.md).
+import type { ErrorCode, ListEnvelope } from '@restaurant/contracts';
+
+// Response helpers shared by every route (README, Responses). Success is `{ data }` or
+// `{ data, meta }`; every error is `{ error: { code, message } }`. Messages describe what the
+// caller sent, never server internals: those go to the log (.agents/rules/security.md).
 
 /** The request body as JSON, or `undefined` if it isn't JSON; schema validation then rejects it. */
 export async function readJson(req: Request): Promise<unknown> {
@@ -11,40 +14,69 @@ export async function readJson(req: Request): Promise<unknown> {
   }
 }
 
-export function ok<T>(body: T): Response {
-  return Response.json(body);
+export function ok<T>(data: T): Response {
+  return Response.json({ data });
 }
 
-export function created<T>(body: T): Response {
-  return Response.json(body, { status: 201 });
+export function okList<T>(list: ListEnvelope<T>): Response {
+  return Response.json(list);
 }
 
-/** The request was well-formed but broke a rule; `body` says which, using caller-sent ids only. */
-export function unprocessable<T>(body: T): Response {
-  return Response.json(body, { status: 422 });
+export function created<T>(data: T): Response {
+  return Response.json({ data }, { status: 201 });
 }
 
-export function badRequest(): Response {
-  return Response.json({ error: 'Bad request' }, { status: 400 });
+export function apiError(
+  status: number,
+  code: ErrorCode,
+  message: string,
+  headers?: Record<string, string>,
+): Response {
+  return Response.json({ error: { code, message } }, { status, ...(headers ? { headers } : {}) });
 }
 
-/** No valid staff key. The body never says whether the key was missing, malformed or unknown. */
+type ValidationIssues = { issues: readonly { path: readonly PropertyKey[]; message: string }[] };
+
+/** 400 naming the first field that failed validation, e.g. `limit: Too big: expected number to be <=100`. */
+export function invalid(error: ValidationIssues): Response {
+  const issue = error.issues[0];
+  const field =
+    issue === undefined || issue.path.length === 0 ? 'body' : issue.path.map(String).join('.');
+  return apiError(400, 'VALIDATION_ERROR', `${field}: ${issue?.message ?? 'Invalid request'}`);
+}
+
+/** No valid staff key. The message never says whether it was missing, malformed or unknown. */
 export function unauthorized(): Response {
-  return Response.json(
-    { error: 'Unauthorized' },
-    { status: 401, headers: { 'WWW-Authenticate': 'Bearer' } },
-  );
+  return apiError(401, 'UNAUTHORIZED', 'A valid staff key is required', {
+    'WWW-Authenticate': 'Bearer',
+  });
 }
 
-/** The request was valid but the resource changed under it; the caller should re-read and retry. */
-export function conflict<T>(body: T): Response {
-  return Response.json(body, { status: 409 });
+export function forbidden(message: string): Response {
+  return apiError(403, 'FORBIDDEN', message);
 }
 
-export function notFound(): Response {
-  return Response.json({ error: 'Not found' }, { status: 404 });
+export function notFound(message: string): Response {
+  return apiError(404, 'NOT_FOUND', message);
+}
+
+export function methodNotAllowed(): Response {
+  return apiError(405, 'METHOD_NOT_ALLOWED', 'This method is not supported on this path');
+}
+
+export function conflict(code: ErrorCode, message: string): Response {
+  return apiError(409, code, message);
+}
+
+export function unprocessable(code: ErrorCode, message: string): Response {
+  return apiError(422, code, message);
 }
 
 export function serverError(): Response {
-  return Response.json({ error: 'Something went wrong' }, { status: 500 });
+  return apiError(500, 'INTERNAL_ERROR', 'Something went wrong');
+}
+
+/** The query string as a plain object for schema parsing. A repeated key keeps its last value. */
+export function queryOf(req: Request): Record<string, string> {
+  return Object.fromEntries(new URL(req.url).searchParams);
 }

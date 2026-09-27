@@ -70,3 +70,23 @@ export function priceOrder(input: {
 function reject(rejection: OrderRejection): PriceOrderResult {
   return { ok: false, rejection };
 }
+
+/** A caller-facing sentence for a rejection. Only ids the caller sent appear in it. */
+export function describeRejection(rejection: OrderRejection): string {
+  switch (rejection.reason) {
+    case 'NO_ITEMS':
+      return 'An order needs at least one item';
+    case 'INVALID_QUANTITY':
+      return `Menu item ${rejection.menuItemId} needs a whole-number quantity of 1 or more`;
+    case 'DUPLICATE_ITEM':
+      return `Menu item ${rejection.menuItemId} is listed more than once; combine the quantities`;
+    case 'ITEM_NOT_FOUND':
+      return `Menu item ${rejection.menuItemId} does not exist`;
+    case 'ITEM_FROM_OTHER_RESTAURANT':
+      return `Menu item ${rejection.menuItemId} belongs to another restaurant; an order comes from one restaurant`;
+    case 'ITEM_UNAVAILABLE':
+      return `Menu item ${rejection.menuItemId} is not available`;
+    case 'TOTAL_TOO_LARGE':
+      return 'The order total is too large';
+  }
+}

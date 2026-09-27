@@ -160,9 +160,11 @@ An order can be cancelled from `PENDING`, `CONFIRMED` or `PREPARING`. Once it is
 
 ### Access (until sign-in exists)
 
-There are no accounts yet, so the server cannot tell who is calling. Until that is designed:
+There are no customer accounts yet, so the server can't tell which customer is calling. Until
+that is designed:
 
-- **Restaurants and menu items are public to read.** They hold no personal data.
+- **Restaurants and menus are public to read.** They hold no personal data. Hidden menu items
+  are visible only to that restaurant's own staff.
 - **Placing an order is open.** The response returns the new order to the caller who sent it,
   and nothing else. The customer's phone number, name and id are never echoed back.
 - **An order finds or creates its customer by phone.** The order carries the customer's name,
@@ -170,10 +172,10 @@ There are no accounts yet, so the server cannot tell who is calling. Until that 
   and their stored name and area are left unchanged. Otherwise a new customer is created.
 - **Phone must already be in `+234` format:** `+234` followed by 10 digits, e.g.
   `+2348031234567`. Any other format is rejected, not converted.
-- **Nothing reads or lists orders or customers.** No endpoint returns an existing order or a
-  customer record, so one caller can never see another customer's orders or phone number.
-- **Only a restaurant's own staff change its orders or its menu.** See
-  [Restaurant staff access](#restaurant-staff-access).
+- **Only a restaurant's own staff read, change or cancel its orders, or change its menu.** See
+  [Restaurant staff access](#restaurant-staff-access). Nobody else can read an order.
+- **Customers have no endpoints of their own.** A customer list would hand out phone numbers
+  (rule G), so `Customer` is only ever reached through a restaurant's own orders.
 
 ### Restaurant staff access
 
@@ -182,35 +184,28 @@ that restaurant's **staff key**: a long random secret, sent as `Authorization: B
 
 **How keys work**
 
-- **One key per restaurant.** The key identifies the restaurant, so staff never send a
-  restaurant id: every staff request only ever sees that one restaurant's data.
+- **One key per restaurant.** The key identifies the restaurant, so every staff request only
+  ever sees that one restaurant's data.
 - **Only a hash is stored** (`Restaurant.staffKeyHash`). The key itself is shown once, when it is
   issued, and can't be recovered from the database. A leaked database dump doesn't leak keys.
 - **Issued by the site manager, not over the API.** A script (`npm run staff-key -- <restaurantId>`)
   prints a new key. Running it again replaces the key, and the old one stops working at once.
   There is no endpoint that creates or shows keys.
 - **A restaurant with no key can't be managed** until one is issued.
-- **Staff keys are separate from customers.** They grant nothing on any other restaurant, and a
-  wrong or missing key gets `401` with no hint as to why.
+- **A wrong or malformed key gets `401`** with no hint as to why, even on endpoints that are
+  otherwise public: a bad key is never silently treated as "no key".
 
-**What staff can do** (all under `/api/staff/…`, all limited to their own restaurant)
+**What staff can do** is marked "staff" in the [API](#api-version-1) table. On top of that:
 
-| Endpoint                              | Does                                                                            |
-| ------------------------------------- | ------------------------------------------------------------------------------- |
-| `GET /api/staff/orders?status=…`      | Lists the restaurant's orders, newest first, paginated like the restaurant list |
-| `GET /api/staff/orders/{id}`          | One order with its items and the customer's name, phone and area                |
-| `PATCH /api/staff/orders/{id}/status` | Moves an order one step, following [Order status](#order-status)                |
-| `GET /api/staff/menu-items`           | The whole menu, **including** hidden items                                      |
-| `POST /api/staff/menu-items`          | Adds an item (`name`, `category`, `price`); it starts available                 |
-| `PATCH /api/staff/menu-items/{id}`    | Changes `name`, `category`, `price` or `available`                              |
-
-- **Another restaurant's order or item looks like it doesn't exist** (`404`, not `403`), so
-  staff can't even learn which ids belong to someone else.
+- **Another restaurant's order or menu item looks like it doesn't exist** (`404`), so staff
+  can't learn which ids belong to someone else. Adding an item to another restaurant's menu is
+  `403`: that restaurant is public, so pretending it doesn't exist would be dishonest.
 - **The customer's phone is shown only while the order is active** (not `DELIVERED` or
   `CANCELLED`). Staff need it to deliver; they don't need a list of past customers' numbers.
 - **Changing a price never changes past orders**, because each order line keeps its own
   `unitPrice`.
-- **Nothing is deleted.** Menu items are hidden with `available = false` (rule D).
+- **Nothing is deleted.** Menu items are hidden with `available = false` (rule D), and
+  `DELETE` on an order cancels it: the order is kept with status `CANCELLED`.
 
 **What staff can't do**
 
@@ -220,33 +215,90 @@ that restaurant's **staff key**: a long random secret, sent as `Authorization: B
   manager's job for now; it can be opened up later.
 - See any customer data except on their own restaurant's orders.
 
-### Listing restaurants is paginated
+## API (version 1)
 
-The restaurant list is returned a page at a time, so it stays fast however many restaurants join.
+Every path starts with **`/api/v1/`**. Versioning from the first release means a later,
+incompatible change ships as `/api/v2/` while `/api/v1/` keeps working for existing clients.
+Resources are plural nouns and the HTTP method carries the verb.
 
-- **Cursor-based:** `GET /api/restaurants?limit=20&cursor=<id>` returns
-  `{ items, nextCursor }`. Pass `nextCursor` back to get the next page; it is `null` on the last
-  page. The cursor is the last restaurant's id, which is already public.
-- **Stable order:** by `name`, then `id`, so pages don't shift when a restaurant is added.
-- **Page size:** 20 by default, at most 100. A `limit` outside 1–100 is rejected with `400`.
-- **Menus are not paginated.** A restaurant's menu is short enough to return whole.
+| Method and path                      | Who                                                   | Does                                                                                 |
+| ------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `GET /api/v1/restaurants`            | anyone                                                | Lists restaurants                                                                    |
+| `GET /api/v1/restaurants/{id}`       | anyone                                                | One restaurant                                                                       |
+| `GET /api/v1/restaurants/{id}/menu`  | anyone; that restaurant's staff also see hidden items | Lists the restaurant's menu items                                                    |
+| `POST /api/v1/restaurants/{id}/menu` | staff of that restaurant                              | Adds a menu item (`name`, `category`, `price`); it starts available                  |
+| `GET /api/v1/menu-items/{id}`        | anyone; a hidden item only to its own staff           | One menu item                                                                        |
+| `PATCH /api/v1/menu-items/{id}`      | staff of its restaurant                               | Changes `name`, `category`, `price` and/or `available`                               |
+| `POST /api/v1/orders`                | anyone                                                | Places an order                                                                      |
+| `GET /api/v1/orders`                 | staff                                                 | Lists their restaurant's orders                                                      |
+| `GET /api/v1/orders/{id}`            | staff of its restaurant                               | One order, with its items and customer                                               |
+| `PATCH /api/v1/orders/{id}`          | staff of its restaurant                               | Moves `status` one step (see [Order status](#order-status)); nothing else can change |
+| `DELETE /api/v1/orders/{id}`         | staff of its restaurant                               | Cancels the order; allowed until it is out for delivery                              |
+
+### Responses
+
+Every response uses one envelope. A single resource:
+
+```json
+{ "data": { "id": "clx8k2j9d0000qz8h3v1f7a2b", "name": "Mama Put" } }
+```
+
+A list:
+
+```json
+{ "data": [ ... ], "meta": { "total": 340, "limit": 20, "offset": 0, "hasMore": true } }
+```
+
+Every error, from every endpoint, including unknown paths and unsupported methods:
+
+```json
+{ "error": { "code": "NOT_FOUND", "message": "Restaurant not found" } }
+```
+
+| Status | `code`                                                                                                                      | When                                                                      |
+| ------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 400    | `VALIDATION_ERROR`                                                                                                          | A bad id, query parameter or body; the message names the field            |
+| 401    | `UNAUTHORIZED`                                                                                                              | A staff endpoint without a valid key, or any request with an invalid key  |
+| 403    | `FORBIDDEN`                                                                                                                 | Staff acting on a restaurant that isn't theirs                            |
+| 404    | `NOT_FOUND`                                                                                                                 | No such resource, or not visible to this caller                           |
+| 405    | `METHOD_NOT_ALLOWED`                                                                                                        | The path exists but not with that method                                  |
+| 409    | `INVALID_TRANSITION`, `STATUS_CHANGED`                                                                                      | A status change the rules forbid, or someone else changed the order first |
+| 422    | `ITEM_NOT_FOUND`, `ITEM_FROM_OTHER_RESTAURANT`, `ITEM_UNAVAILABLE`, `DUPLICATE_ITEM`, `INVALID_QUANTITY`, `TOTAL_TOO_LARGE` | An order breaks a rule; the message says which item                       |
+| 500    | `INTERNAL_ERROR`                                                                                                            | Anything unexpected. Details are logged, never returned                   |
+
+### Lists: pagination, filtering and sorting
+
+Every list endpoint takes the same parameters:
+
+- **Pagination:** `?limit=` (default 20, at most 100) and `?offset=` (default 0). `meta.total`
+  is the number of matching rows and `meta.hasMore` says whether another page exists. Offset
+  pages can shift if rows are added while someone is paging; at this scale that is accepted.
+- **Sorting:** `?sort=<field>&order=asc|desc`. The id always breaks ties, so the order is fixed.
+  Restaurants with no rating always sort last.
+- **Filtering:** by the fields below. Money filters are in kobo.
+- **Invalid values are rejected with `400`**, never ignored or clamped, including a minimum
+  greater than its maximum.
+
+| List                            | Filters                                                                                                         | `sort` fields (default first)           | Default `order` |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------- |
+| `/api/v1/restaurants`           | `area`, `cuisine` (exact, any case), `minRating`, `maxDeliveryFee`                                              | `name`, `rating`, `deliveryFee`         | `asc`           |
+| `/api/v1/restaurants/{id}/menu` | `category` (exact, any case), `minPrice`, `maxPrice`, `available` (staff; others only ever see available items) | `category` (then name), `name`, `price` | `asc`           |
+| `/api/v1/orders`                | `status`, `from` and `to` (ISO 8601 date-times on `createdAt`)                                                  | `createdAt`, `total`                    | `desc`          |
 
 ## Open questions
 
-1. **Who can move an order's status and edit a menu?** Each restaurant's own staff. Agreed:
-   see [Restaurant staff access](#restaurant-staff-access).
-2. **How does a customer check on an order after placing it?** This needs customer sign-in or a
+1. **How does a customer check on an order after placing it?** This needs customer sign-in or a
    secret per-order link. It is not decided yet. Until then, the only customer data the API
-   returns is the response to the order the caller just placed.
+   returns is the response to the order the caller just placed, and, to a restaurant's own
+   staff, the customers of its own orders.
    **Known gap:** because orders find their customer by phone, anyone who types a stranger's
-   number attaches orders to that stranger's record. That is harmless while nothing reads order
-   history, but it must be closed (e.g. by confirming the phone) before any order history becomes
-   readable.
+   number attaches orders to that stranger's record. That is harmless while no customer can read
+   order history, but it must be closed (e.g. by confirming the phone) before one can.
 
 ## What's in this repository
 
-Built so far: the schema and its migration, public reads of restaurants (paginated) and menus,
-placing an order (`POST /api/orders`), and a repeatable seed script.
+Built so far: the schema and its migrations, the version 1 API described above, the staff key
+script and a repeatable seed script.
 
 ```
 apps/api/            Next.js + TypeScript: API routes and web pages

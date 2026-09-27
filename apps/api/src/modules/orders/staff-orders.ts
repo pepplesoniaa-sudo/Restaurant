@@ -1,16 +1,17 @@
-import type { OrderStatus, Prisma } from '@prisma/client';
-import type { Page, StaffOrderListQuery, StaffOrderView } from '@restaurant/contracts';
+import { OrderStatus, type Prisma } from '@prisma/client';
+import type { ListEnvelope, OrderListQuery, OrderView } from '@restaurant/contracts';
 import { db } from '@/lib/db';
-import { pageArgs, toPage } from '@/lib/pagination';
+import { pageArgs, toList } from '@/lib/pagination';
 import type { Staff } from '@/modules/restaurants/staff-auth';
 import { canTransition, isFinal } from './order-status';
 
-// Orders as a restaurant's own staff see them (README, Restaurant staff access). Every query is
-// filtered by the staff member's restaurant, so another restaurant's order looks like it doesn't
-// exist.
+// Orders as a restaurant's own staff see and manage them (README, Restaurant staff access).
+// Every query is filtered by the staff member's restaurant, so another restaurant's order looks
+// like it doesn't exist.
 
-const staffOrderSelect = {
+const orderSelect = {
   id: true,
+  restaurantId: true,
   status: true,
   total: true,
   createdAt: true,
@@ -26,11 +27,12 @@ const staffOrderSelect = {
   },
 } satisfies Prisma.OrderSelect;
 
-type StaffOrderRow = Prisma.OrderGetPayload<{ select: typeof staffOrderSelect }>;
+type OrderRow = Prisma.OrderGetPayload<{ select: typeof orderSelect }>;
 
-export function toStaffOrderView(row: StaffOrderRow): StaffOrderView {
+export function toOrderView(row: OrderRow): OrderView {
   return {
     id: row.id,
+    restaurantId: row.restaurantId,
     status: row.status,
     total: row.total,
     createdAt: row.createdAt.toISOString(),
@@ -49,33 +51,53 @@ export function toStaffOrderView(row: StaffOrderRow): StaffOrderView {
   };
 }
 
-export async function listStaffOrders(
-  staff: Staff,
-  query: StaffOrderListQuery,
-): Promise<Page<StaffOrderView>> {
-  const rows = await db.order.findMany({
-    where: {
-      restaurantId: staff.restaurantId,
-      ...(query.status === undefined ? {} : { status: query.status }),
-    },
-    select: staffOrderSelect,
-    // Newest first; id breaks ties so every order has one fixed place in the list.
-    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-    ...pageArgs(query),
-  });
-  return toPage(rows, query.limit, toStaffOrderView);
+export function orderWhere(staff: Staff, query: OrderListQuery): Prisma.OrderWhereInput {
+  return {
+    restaurantId: staff.restaurantId,
+    ...(query.status === undefined ? {} : { status: query.status }),
+    ...(query.from === undefined && query.to === undefined
+      ? {}
+      : {
+          createdAt: {
+            ...(query.from === undefined ? {} : { gte: query.from }),
+            ...(query.to === undefined ? {} : { lte: query.to }),
+          },
+        }),
+  };
 }
 
-export async function getStaffOrder(staff: Staff, orderId: string): Promise<StaffOrderView | null> {
+export function orderOrderBy(query: OrderListQuery): Prisma.OrderOrderByWithRelationInput[] {
+  // id breaks ties, so every order has one fixed place and pages don't overlap.
+  return [{ [query.sort]: query.order }, { id: query.order }];
+}
+
+export async function listOrders(
+  staff: Staff,
+  query: OrderListQuery,
+): Promise<ListEnvelope<OrderView>> {
+  const where = orderWhere(staff, query);
+  const [total, rows] = await db.$transaction([
+    db.order.count({ where }),
+    db.order.findMany({
+      where,
+      select: orderSelect,
+      orderBy: orderOrderBy(query),
+      ...pageArgs(query),
+    }),
+  ]);
+  return toList(rows, total, query, toOrderView);
+}
+
+export async function getOrder(staff: Staff, orderId: string): Promise<OrderView | null> {
   const row = await db.order.findFirst({
     where: { id: orderId, restaurantId: staff.restaurantId },
-    select: staffOrderSelect,
+    select: orderSelect,
   });
-  return row === null ? null : toStaffOrderView(row);
+  return row === null ? null : toOrderView(row);
 }
 
 export type ChangeStatusResult =
-  | { ok: true; order: StaffOrderView }
+  | { ok: true; order: OrderView }
   | { ok: false; reason: 'NOT_FOUND' }
   | { ok: false; reason: 'INVALID_TRANSITION'; from: OrderStatus; to: OrderStatus }
   | { ok: false; reason: 'STATUS_CHANGED' };
@@ -103,9 +125,11 @@ export async function changeOrderStatus(
   });
   if (updated.count === 0) return { ok: false, reason: 'STATUS_CHANGED' };
 
-  const row = await db.order.findUniqueOrThrow({
-    where: { id: orderId },
-    select: staffOrderSelect,
-  });
-  return { ok: true, order: toStaffOrderView(row) };
+  const row = await db.order.findUniqueOrThrow({ where: { id: orderId }, select: orderSelect });
+  return { ok: true, order: toOrderView(row) };
+}
+
+/** `DELETE` on an order: cancels it and keeps the row (README, Restaurant staff access). */
+export function cancelOrder(staff: Staff, orderId: string): Promise<ChangeStatusResult> {
+  return changeOrderStatus(staff, orderId, OrderStatus.CANCELLED);
 }
