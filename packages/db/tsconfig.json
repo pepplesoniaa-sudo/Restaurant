@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["seed/**/*.ts"]
+  "include": ["seed/**/*.ts", "scripts/**/*.ts"]
 }

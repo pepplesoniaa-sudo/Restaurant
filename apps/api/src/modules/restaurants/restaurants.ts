@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import type { RestaurantListQuery, RestaurantPage, RestaurantView } from '@restaurant/contracts';
 import { db } from '@/lib/db';
+import { pageArgs, toPage } from '@/lib/pagination';
 
 // Restaurants hold no personal data, so they are public to read (README, Access).
 
@@ -27,25 +28,14 @@ export function toRestaurantView(row: RestaurantRow): RestaurantView {
   };
 }
 
-/**
- * `rows` is one longer than `limit` when another page exists: the extra row is dropped and the
- * last kept row's id becomes the next cursor.
- */
-export function toRestaurantPage(rows: RestaurantRow[], limit: number): RestaurantPage {
-  const items = rows.slice(0, limit).map(toRestaurantView);
-  const last = items.at(-1);
-  return { items, nextCursor: rows.length > limit && last !== undefined ? last.id : null };
-}
-
 export async function listRestaurants(query: RestaurantListQuery): Promise<RestaurantPage> {
   const rows = await db.restaurant.findMany({
     select: restaurantSelect,
     // id breaks ties between equal names, so every row has one fixed place in the order.
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    take: query.limit + 1,
-    ...(query.cursor === undefined ? {} : { cursor: { id: query.cursor }, skip: 1 }),
+    ...pageArgs(query),
   });
-  return toRestaurantPage(rows, query.limit);
+  return toPage(rows, query.limit, toRestaurantView);
 }
 
 export async function getRestaurant(restaurantId: string): Promise<RestaurantView | null> {

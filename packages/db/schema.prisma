@@ -20,12 +20,14 @@ enum OrderStatus {
 }
 
 model Restaurant {
-  id          String   @id @default(cuid())
-  name        String
-  area        String
-  cuisine     String
-  rating      Decimal? @db.Decimal(2, 1) // 0.0–5.0, typed in by hand; null = no rating yet
-  deliveryFee Int // kobo
+  id           String   @id @default(cuid())
+  name         String
+  area         String
+  cuisine      String
+  rating       Decimal? @db.Decimal(2, 1) // 0.0–5.0, typed in by hand; null = no rating yet
+  deliveryFee  Int // kobo
+  // SHA-256 of the restaurant's staff key; the key itself is never stored. null = no key issued.
+  staffKeyHash String?  @unique
 
   menuItems MenuItem[]
   orders    Order[]

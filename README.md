@@ -49,14 +49,15 @@ Every field is **required** unless marked optional. Types are the Prisma types t
 
 ### Restaurant
 
-| Field       | Type      | Required | Notes                                                                |
-| ----------- | --------- | -------- | -------------------------------------------------------------------- |
-| id          | `String`  | yes      | Generated cuid — see [Identifiers](#identifiers)                     |
-| name        | `String`  | yes      |                                                                      |
-| area        | `String`  | yes      | Neighbourhood served, e.g. "Yaba", "Lekki Phase 1"                   |
-| cuisine     | `String`  | yes      | e.g. "Nigerian", "Chinese", "Grills"                                 |
-| rating      | `Decimal` | optional | 0.0–5.0, one decimal place. Typed in by hand — see [Rating](#rating) |
-| deliveryFee | `Int`     | yes      | **Kobo.** ₦1,500 is stored as `150000`. `0` means free delivery      |
+| Field        | Type      | Required | Notes                                                                                                                                        |
+| ------------ | --------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| id           | `String`  | yes      | Generated cuid — see [Identifiers](#identifiers)                                                                                             |
+| name         | `String`  | yes      |                                                                                                                                              |
+| area         | `String`  | yes      | Neighbourhood served, e.g. "Yaba", "Lekki Phase 1"                                                                                           |
+| cuisine      | `String`  | yes      | e.g. "Nigerian", "Chinese", "Grills"                                                                                                         |
+| rating       | `Decimal` | optional | 0.0–5.0, one decimal place. Typed in by hand — see [Rating](#rating)                                                                         |
+| deliveryFee  | `Int`     | yes      | **Kobo.** ₦1,500 is stored as `150000`. `0` means free delivery                                                                              |
+| staffKeyHash | `String`  | optional | Unique. SHA-256 hash of the restaurant's staff key — see [Restaurant staff access](#restaurant-staff-access). Never returned by any endpoint |
 
 ### MenuItem
 
@@ -171,8 +172,53 @@ There are no accounts yet, so the server cannot tell who is calling. Until that 
   `+2348031234567`. Any other format is rejected, not converted.
 - **Nothing reads or lists orders or customers.** No endpoint returns an existing order or a
   customer record, so one caller can never see another customer's orders or phone number.
-- **Nothing changes an order's status or edits a menu.** Those actions need a restaurant or
-  operator role, which is an open question below.
+- **Only a restaurant's own staff change its orders or its menu.** See
+  [Restaurant staff access](#restaurant-staff-access).
+
+### Restaurant staff access
+
+Each restaurant manages its own orders and menu. A restaurant's staff prove who they are with
+that restaurant's **staff key**: a long random secret, sent as `Authorization: Bearer <key>`.
+
+**How keys work**
+
+- **One key per restaurant.** The key identifies the restaurant, so staff never send a
+  restaurant id: every staff request only ever sees that one restaurant's data.
+- **Only a hash is stored** (`Restaurant.staffKeyHash`). The key itself is shown once, when it is
+  issued, and can't be recovered from the database. A leaked database dump doesn't leak keys.
+- **Issued by the site manager, not over the API.** A script (`npm run staff-key -- <restaurantId>`)
+  prints a new key. Running it again replaces the key, and the old one stops working at once.
+  There is no endpoint that creates or shows keys.
+- **A restaurant with no key can't be managed** until one is issued.
+- **Staff keys are separate from customers.** They grant nothing on any other restaurant, and a
+  wrong or missing key gets `401` with no hint as to why.
+
+**What staff can do** (all under `/api/staff/…`, all limited to their own restaurant)
+
+| Endpoint                              | Does                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------- |
+| `GET /api/staff/orders?status=…`      | Lists the restaurant's orders, newest first, paginated like the restaurant list |
+| `GET /api/staff/orders/{id}`          | One order with its items and the customer's name, phone and area                |
+| `PATCH /api/staff/orders/{id}/status` | Moves an order one step, following [Order status](#order-status)                |
+| `GET /api/staff/menu-items`           | The whole menu, **including** hidden items                                      |
+| `POST /api/staff/menu-items`          | Adds an item (`name`, `category`, `price`); it starts available                 |
+| `PATCH /api/staff/menu-items/{id}`    | Changes `name`, `category`, `price` or `available`                              |
+
+- **Another restaurant's order or item looks like it doesn't exist** (`404`, not `403`), so
+  staff can't even learn which ids belong to someone else.
+- **The customer's phone is shown only while the order is active** (not `DELIVERED` or
+  `CANCELLED`). Staff need it to deliver; they don't need a list of past customers' numbers.
+- **Changing a price never changes past orders**, because each order line keeps its own
+  `unitPrice`.
+- **Nothing is deleted.** Menu items are hidden with `available = false` (rule D).
+
+**What staff can't do**
+
+- Change their restaurant's `rating`. It is set by the site manager (see [Rating](#rating));
+  a restaurant rating itself would make the score meaningless.
+- Change their restaurant's `name`, `area`, `cuisine` or `deliveryFee`. That is the site
+  manager's job for now; it can be opened up later.
+- See any customer data except on their own restaurant's orders.
 
 ### Listing restaurants is paginated
 
@@ -187,9 +233,8 @@ The restaurant list is returned a page at a time, so it stays fast however many 
 
 ## Open questions
 
-1. **Who can move an order's status and edit a menu?** This needs some form of restaurant or
-   operator sign-in. That is a design change (new fields or a new resource on the diagram) and
-   waits for a human decision.
+1. **Who can move an order's status and edit a menu?** Each restaurant's own staff. Agreed:
+   see [Restaurant staff access](#restaurant-staff-access).
 2. **How does a customer check on an order after placing it?** This needs customer sign-in or a
    secret per-order link. It is not decided yet. Until then, the only customer data the API
    returns is the response to the order the caller just placed.
@@ -200,7 +245,8 @@ The restaurant list is returned a page at a time, so it stays fast however many 
 
 ## What's in this repository
 
-The structure, tooling and database schema are in place. No routes or features are built yet.
+Built so far: the schema and its migration, public reads of restaurants (paginated) and menus,
+placing an order (`POST /api/orders`), and a repeatable seed script.
 
 ```
 apps/api/            Next.js + TypeScript: API routes and web pages
@@ -229,4 +275,11 @@ npm run dev                 # http://localhost:3002
 `db:seed` (in `packages/db/seed/`) **clears all five tables** and reloads them in one
 transaction, so it is safe to run as often as you like on a development database and never
 creates duplicates. It refuses to run when `NODE_ENV=production`. The data is generated with
-Faker from a fixed seed; nothing is loaded from a dump.
+Faker from a fixed seed; nothing is loaded from a dump. Seeding also clears every staff key.
+
+To let a restaurant's staff in, issue it a key (see
+[Restaurant staff access](#restaurant-staff-access)):
+
+```bash
+npm run staff-key -- <restaurantId>   # prints a new key once; replaces any previous key
+```

@@ -1,4 +1,4 @@
-import type { OrderStatus } from '@prisma/client';
+import { OrderStatus } from '@prisma/client';
 import { z } from 'zod';
 
 // Route params. Every id is a cuid (README, Identifiers); anything else is rejected before
@@ -11,10 +11,18 @@ export type RestaurantIdParams = z.infer<typeof RestaurantIdParams>;
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
-export const RestaurantListQuery = z.object({
+const pageQuery = {
   limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
   cursor: z.cuid().optional(),
-});
+};
+
+export type Page<T> = {
+  items: T[];
+  /** Pass back as `cursor` for the next page. `null` on the last page. */
+  nextCursor: string | null;
+};
+
+export const RestaurantListQuery = z.object(pageQuery);
 export type RestaurantListQuery = z.infer<typeof RestaurantListQuery>;
 
 /** The largest value a Postgres INTEGER column can hold. */
@@ -54,11 +62,7 @@ export type RestaurantView = {
   deliveryFee: number;
 };
 
-export type RestaurantPage = {
-  items: RestaurantView[];
-  /** Pass back as `cursor` for the next page. `null` on the last page. */
-  nextCursor: string | null;
-};
+export type RestaurantPage = Page<RestaurantView>;
 
 /** A menu item as shown to customers. Only available items are listed, so there's no flag. */
 export type MenuItemView = {
@@ -84,3 +88,66 @@ export type PlacedOrderView = {
     unitPrice: number;
   }[];
 };
+
+// Restaurant staff (README, Restaurant staff access). The restaurant always comes from the staff
+// key, never from the request, so none of these carry a restaurantId.
+
+export const OrderIdParams = z.object({ orderId: z.cuid() });
+export const MenuItemIdParams = z.object({ menuItemId: z.cuid() });
+
+export const StaffOrderListQuery = z.object({
+  ...pageQuery,
+  status: z.enum(OrderStatus).optional(),
+});
+export type StaffOrderListQuery = z.infer<typeof StaffOrderListQuery>;
+
+export const OrderStatusInput = z.object({ status: z.enum(OrderStatus) });
+export type OrderStatusInput = z.infer<typeof OrderStatusInput>;
+
+const menuItemFields = {
+  name: z.string().trim().min(1),
+  category: z.string().trim().min(1),
+  /** Kobo, greater than 0. */
+  price: z.number().int().min(1).max(MAX_INT4),
+};
+
+/** A new item always starts available (README, Restaurant staff access). */
+export const MenuItemCreateInput = z.object(menuItemFields);
+export type MenuItemCreateInput = z.infer<typeof MenuItemCreateInput>;
+
+export const MenuItemUpdateInput = z
+  .object({
+    name: menuItemFields.name.optional(),
+    category: menuItemFields.category.optional(),
+    price: menuItemFields.price.optional(),
+    available: z.boolean().optional(),
+  })
+  .refine((fields) => Object.values(fields).some((value) => value !== undefined), {
+    message: 'Nothing to change',
+  });
+export type MenuItemUpdateInput = z.infer<typeof MenuItemUpdateInput>;
+
+/** An order as its restaurant's staff see it. */
+export type StaffOrderView = {
+  id: string;
+  status: OrderStatus;
+  /** Kobo. */
+  total: number;
+  createdAt: string;
+  customer: {
+    name: string;
+    area: string;
+    /** Shown only while the order is active; `null` once it is DELIVERED or CANCELLED. */
+    phone: string | null;
+  };
+  items: {
+    menuItemId: string;
+    name: string;
+    quantity: number;
+    /** Kobo, as charged on this order. */
+    unitPrice: number;
+  }[];
+};
+
+/** A menu item as its restaurant's staff see it: hidden items included. */
+export type StaffMenuItemView = MenuItemView & { available: boolean };
