@@ -8,7 +8,7 @@
     "packages/contracts"
   ],
   "engines": {
-    "node": ">=22.0.0"
+    "node": "22.x"
   },
   "scripts": {
     "dev": "dotenv -e .env -- npm run dev --workspace @restaurant/api",
