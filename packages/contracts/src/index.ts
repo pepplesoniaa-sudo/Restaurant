@@ -6,6 +6,17 @@ import { z } from 'zod';
 export const RestaurantIdParams = z.object({ restaurantId: z.cuid() });
 export type RestaurantIdParams = z.infer<typeof RestaurantIdParams>;
 
+// Listing restaurants (README, Listing restaurants is paginated). Query-string values arrive as
+// text, so `limit` is coerced; an empty or out-of-range limit is rejected, not clamped.
+export const DEFAULT_PAGE_SIZE = 20;
+export const MAX_PAGE_SIZE = 100;
+
+export const RestaurantListQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+  cursor: z.cuid().optional(),
+});
+export type RestaurantListQuery = z.infer<typeof RestaurantListQuery>;
+
 /** The largest value a Postgres INTEGER column can hold. */
 export const MAX_INT4 = 2_147_483_647;
 
@@ -41,6 +52,12 @@ export type RestaurantView = {
   rating: number | null;
   /** Kobo. `0` means free delivery. */
   deliveryFee: number;
+};
+
+export type RestaurantPage = {
+  items: RestaurantView[];
+  /** Pass back as `cursor` for the next page. `null` on the last page. */
+  nextCursor: string | null;
 };
 
 /** A menu item as shown to customers. Only available items are listed, so there's no flag. */

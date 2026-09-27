@@ -174,6 +174,17 @@ There are no accounts yet, so the server cannot tell who is calling. Until that 
 - **Nothing changes an order's status or edits a menu.** Those actions need a restaurant or
   operator role, which is an open question below.
 
+### Listing restaurants is paginated
+
+The restaurant list is returned a page at a time, so it stays fast however many restaurants join.
+
+- **Cursor-based:** `GET /api/restaurants?limit=20&cursor=<id>` returns
+  `{ items, nextCursor }`. Pass `nextCursor` back to get the next page; it is `null` on the last
+  page. The cursor is the last restaurant's id, which is already public.
+- **Stable order:** by `name`, then `id`, so pages don't shift when a restaurant is added.
+- **Page size:** 20 by default, at most 100. A `limit` outside 1–100 is rejected with `400`.
+- **Menus are not paginated.** A restaurant's menu is short enough to return whole.
+
 ## Open questions
 
 1. **Who can move an order's status and edit a menu?** This needs some form of restaurant or

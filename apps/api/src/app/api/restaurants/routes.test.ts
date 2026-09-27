@@ -29,19 +29,45 @@ beforeEach(() => {
 });
 
 describe('GET /api/restaurants', () => {
-  it('returns the list from the module', async () => {
-    listRestaurants.mockResolvedValue([restaurant]);
+  const list = (query = '') =>
+    listRoute.GET(new Request(`http://localhost/api/restaurants${query}`));
 
-    const res = await listRoute.GET();
+  it('asks for the default page size when no limit is given', async () => {
+    listRestaurants.mockResolvedValue({ items: [restaurant], nextCursor: null });
 
+    const res = await list();
+
+    expect(listRestaurants).toHaveBeenCalledExactlyOnceWith({ limit: 20 });
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual([restaurant]);
+    expect(await res.json()).toEqual({ items: [restaurant], nextCursor: null });
+  });
+
+  it('passes the limit and cursor through', async () => {
+    listRestaurants.mockResolvedValue({ items: [], nextCursor: null });
+
+    await list(`?limit=100&cursor=${restaurantId}`);
+
+    expect(listRestaurants).toHaveBeenCalledExactlyOnceWith({ limit: 100, cursor: restaurantId });
+  });
+
+  it.each([
+    ['a limit of 0', '?limit=0'],
+    ['a limit above 100', '?limit=101'],
+    ['a fractional limit', '?limit=2.5'],
+    ['a non-numeric limit', '?limit=all'],
+    ['an empty limit', '?limit='],
+    ['a cursor that is not a cuid', '?cursor=57'],
+  ])('rejects %s with 400 before calling the module', async (_label, query) => {
+    const res = await list(query);
+
+    expect(res.status).toBe(400);
+    expect(listRestaurants).not.toHaveBeenCalled();
   });
 
   it('returns a generic 500 without leaking the error', async () => {
     listRestaurants.mockRejectedValue(new Error('connection refused at 10.0.0.5'));
 
-    const res = await listRoute.GET();
+    const res = await list();
 
     expect(res.status).toBe(500);
     expect(JSON.stringify(await res.json())).not.toContain('10.0.0.5');
