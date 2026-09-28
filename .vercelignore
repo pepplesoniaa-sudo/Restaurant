@@ -1,0 +1,6 @@
+# Never upload local secrets or build output; Vercel sets its own environment and builds fresh.
+.env
+.env.*
+!.env.example
+**/node_modules
+**/.next

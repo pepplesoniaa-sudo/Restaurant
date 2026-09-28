@@ -12,7 +12,7 @@
   },
   "scripts": {
     "dev": "dotenv -e .env -- npm run dev --workspace @restaurant/api",
-    "db:seed": "dotenv -e .env -- npm run seed --workspace @restaurant/db",
+    "db:seed": "dotenv -e .env -- npm run seed --workspace @restaurant/db --",
     "staff-key": "dotenv -e .env -- npm run staff-key --workspace @restaurant/db --",
     "lint": "eslint .",
     "format": "prettier --write .",

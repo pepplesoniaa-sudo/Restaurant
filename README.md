@@ -36,8 +36,13 @@ npm run dev                 # the API is now at http://localhost:3002/api/v1
 
 `db:seed` (in `packages/db/seed/`) **clears all five tables** and reloads them in one
 transaction, so it is safe to run as often as you like on a development database and never
-creates duplicates. It refuses to run when `NODE_ENV=production`. The data is generated with
-Faker from a fixed seed; nothing is loaded from a dump. Seeding also clears every staff key.
+creates duplicates. The data is generated with Faker from a fixed seed; nothing is loaded from a
+dump. Seeding also clears every staff key.
+
+Because it wipes whatever database it points at, the seed only runs against a local database.
+For any other host it refuses unless you name that host, e.g.
+`npm run db:seed -- --confirm-wipe ep-example-123.eu-central-1.aws.neon.tech`. It always
+refuses when `NODE_ENV=production`.
 
 To let a restaurant's staff in, issue it a key (see
 [Restaurant staff access](#restaurant-staff-access)):

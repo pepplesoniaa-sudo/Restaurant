@@ -1,8 +1,10 @@
+import { existsSync } from 'node:fs';
 import { defineConfig } from 'prisma/config';
 
 // When a prisma.config.ts exists, Prisma stops auto-loading .env. Load it
 // explicitly so schema datasource resolution keeps working from any CWD.
-if (typeof process.loadEnvFile === 'function') {
+// Hosted builds (Vercel) have no .env file: their variables are already set.
+if (typeof process.loadEnvFile === 'function' && existsSync('.env')) {
   process.loadEnvFile();
 }
 

@@ -6,6 +6,7 @@
 // cuids, and order dates count back from now so the data always looks recent.
 //
 // Usage (from the repo root): npm run db:seed
+// Against a remote database: npm run db:seed -- --confirm-wipe <database hostname>
 
 import { fakerEN_NG as faker } from '@faker-js/faker';
 import { OrderStatus, PrismaClient, type Prisma } from '@prisma/client';
@@ -176,10 +177,34 @@ async function seed(db: PrismaClient): Promise<void> {
   );
 }
 
-async function main(): Promise<void> {
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '::1', '[::1]']);
+
+/**
+ * The seed clears every table, so it only runs against a local database unless the caller names
+ * the remote one: `--confirm-wipe <hostname>`. Checking the target, not NODE_ENV, is what stops a
+ * laptop with a production DATABASE_URL from wiping production by accident.
+ */
+function assertSafeToWipe(databaseUrl: string | undefined, argv: readonly string[]): void {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('Refusing to seed: this script clears every table. NODE_ENV is production.');
   }
+  if (databaseUrl === undefined) throw new Error('Refusing to seed: DATABASE_URL is not set.');
+
+  const host = new URL(databaseUrl).hostname;
+  if (LOCAL_HOSTS.has(host)) return;
+
+  const flag = argv.indexOf('--confirm-wipe');
+  const confirmed = flag === -1 ? undefined : argv[flag + 1];
+  if (confirmed !== host) {
+    throw new Error(
+      `Refusing to seed ${host}: this clears every table, including real orders and staff keys. ` +
+        `If that is what you want, run again with --confirm-wipe ${host}`,
+    );
+  }
+}
+
+async function main(): Promise<void> {
+  assertSafeToWipe(process.env.DATABASE_URL, process.argv.slice(2));
 
   const db = new PrismaClient();
   try {
