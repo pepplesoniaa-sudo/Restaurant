@@ -30,3 +30,6 @@ coverage/
 # Misc
 *.log
 *.tsbuildinfo
+
+.vercel
+.env*
