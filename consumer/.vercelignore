@@ -1,0 +1,4 @@
+# The consumer is a public static site: upload only the page itself.
+.env
+.env.*
+.vercel
