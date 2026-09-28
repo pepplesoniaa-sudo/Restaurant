@@ -189,6 +189,30 @@ Wait the number of seconds in `Retry-After`, then carry on. How the limit works 
 
 ### Endpoints
 
+**The base URL answers too.** `GET /api/v1` returns an index of the API: its name, version and
+every endpoint below with who may call it. It is a quick way to check the API is up:
+
+```bash
+curl "$BASE"
+```
+
+```json
+{
+  "data": {
+    "name": "Restaurant — Food Market API",
+    "version": "v1",
+    "documentation": "See the README, section \"Using the API\"",
+    "endpoints": [
+      { "method": "GET", "path": "/api/v1/restaurants", "access": "anyone" },
+      { "method": "GET", "path": "/api/v1/restaurants/{id}", "access": "anyone" },
+      "…and the other nine endpoints in the table below"
+    ]
+  }
+}
+```
+
+Any other address under `/api/` that isn't listed here is `404` with the error envelope.
+
 | Method and path                                           | Who                                                   | Does                              |
 | --------------------------------------------------------- | ----------------------------------------------------- | --------------------------------- |
 | [`GET /restaurants`](#list-restaurants)                   | anyone                                                | Lists restaurants                 |

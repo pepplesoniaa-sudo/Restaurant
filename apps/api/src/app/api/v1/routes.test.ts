@@ -43,6 +43,7 @@ const menuItemRoute = await import('./menu-items/[menuItemId]/route');
 const ordersRoute = await import('./orders/route');
 const orderRoute = await import('./orders/[orderId]/route');
 const catchAll = await import('../[...path]/route');
+const indexRoute = await import('./route');
 
 const restaurantId = 'clrest000000000000000000a';
 const menuItemId = 'clitem00000000000000jollof';
@@ -546,6 +547,37 @@ describe('/api/v1/orders/{id}', () => {
       409,
       'INVALID_TRANSITION',
     );
+  });
+});
+
+describe('GET /api/v1 (index)', () => {
+  it('answers with what the API is and its endpoints, instead of 404', async () => {
+    const res = indexRoute.GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.data.version).toBe('v1');
+    expect(body.data.endpoints.every((e: { path: string }) => e.path.startsWith('/api/v1/'))).toBe(
+      true,
+    );
+  });
+
+  it('lists the same 11 endpoints the README documents', async () => {
+    const { readFile } = await import('node:fs/promises');
+    const readme = await readFile(new URL('../../../../../../README.md', import.meta.url), 'utf8');
+    const documented = [...readme.matchAll(/^\| \[`(GET|POST|PATCH|DELETE) (\/[^`]+)`\]/gm)].map(
+      ([, method, path]) => `${method} /api/v1${path}`,
+    );
+    const listed = (await indexRoute.GET().json()).data.endpoints.map(
+      (e: { method: string; path: string }) => `${e.method} ${e.path}`,
+    );
+
+    expect(documented).toHaveLength(11);
+    expect(listed).toEqual(documented);
+  });
+
+  it('refuses other methods with 405', async () => {
+    await expectError(indexRoute.POST(), 405, 'METHOD_NOT_ALLOWED');
   });
 });
 
