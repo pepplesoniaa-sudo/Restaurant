@@ -8,9 +8,12 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Browser extensions such as Grammarly and QuillBot add attributes to <html> and <body> before
+  // React loads. suppressHydrationWarning ignores attribute differences on these two elements
+  // only; mismatches in their children are still reported.
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }
