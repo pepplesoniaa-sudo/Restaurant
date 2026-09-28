@@ -19,6 +19,7 @@ the project's **data design** (see [Data design](#data-design)).
     [Rate limiting](#rate-limiting)
   - Endpoints: [Restaurants](#restaurants) · [Menus](#menus) · [Orders](#orders) ·
     [Order status](#order-status)
+- [Example consumer](#example-consumer)
 - [Design decisions](#design-decisions)
 - [Data design](#data-design)
 - [Open questions](#open-questions)
@@ -32,6 +33,7 @@ cp .env.example .env        # then set DATABASE_URL
 npx prisma migrate dev      # creates the tables from packages/db/schema.prisma
 npm run db:seed             # optional: loads a few hundred realistic rows per resource
 npm run dev                 # the API is now at http://localhost:3002/api/v1
+                            # (or: npm run build --workspace @restaurant/api && npm start)
 ```
 
 `db:seed` (in `packages/db/seed/`) **clears all five tables** and reloads them in one
@@ -186,6 +188,19 @@ Retry-After: 59
 
 Wait the number of seconds in `Retry-After`, then carry on. How the limit works is described in
 [How rate limiting works](#how-rate-limiting-works).
+
+### Calling from a browser (CORS)
+
+Web pages on any other site may call the API directly from the browser. Every `/api/` response
+carries `Access-Control-Allow-Origin: *`, and the browser's preflight check (`OPTIONS`) is
+answered for `GET`, `POST`, `PATCH` and `DELETE` with the `Authorization` and `Content-Type`
+headers. `Retry-After` is exposed so a page can read it from a `429`.
+
+Allowing every origin is safe because the API uses **no cookies**: a staff key or tracking token
+is only sent when the calling page itself puts it in the `Authorization` header, so another site
+can't borrow a visitor's access. The settings live in `apps/api/src/config/cors.ts`.
+
+The [example consumer](#example-consumer) is a web page that uses the API this way.
 
 ### Endpoints
 
@@ -774,6 +789,33 @@ An order moves forward one step at a time. It can't skip a step or go backwards.
 cancelled from `PENDING`, `CONFIRMED` or `PREPARING`; once it is `OUT_FOR_DELIVERY` it can only
 become `DELIVERED`. `DELIVERED` and `CANCELLED` are final.
 
+## Example consumer
+
+`consumer/` is a small web page that uses the API the way any outside client would, from a
+browser on another site: plain HTML and JavaScript, no framework, no build step. It shows the
+whole API working end to end:
+
+1. **Browse restaurants** with area and cuisine filters, sorting, and Previous / Next paging
+   driven by `meta`.
+2. **Open a menu**, filter it by category, sort by price.
+3. **Place an order.** The page shows an estimate, but the confirmed total is the one the API
+   returns. The tracking token is shown once and remembered in this browser.
+4. **Track the order** with its id and tracking token.
+
+Every error is shown to the user as `code: message` from the error envelope. On `429` the page
+disables its buttons and counts down the `Retry-After` seconds.
+
+**Run it.** It talks to the live API by default. To point it at a local server instead, add
+`?api=`:
+
+```bash
+npx serve consumer                      # or open consumer/index.html directly in a browser
+# then visit http://localhost:3000/?api=http://localhost:3002
+```
+
+Its styles use only the project's design tokens. `consumer/design-tokens.css` is a copy of the
+generated root file; refresh it with `npm run consumer:tokens`, never by hand.
+
 ## Design decisions
 
 ### Why these resources
@@ -1110,6 +1152,7 @@ apps/api/            Next.js + TypeScript: API routes and web pages
   src/proxy.ts       Runs before every /api request (rate limiting)
 packages/db/         Prisma schema + migrations (the only copy of the schema)
 packages/contracts/  Shared TypeScript types / zod schemas for every request and response
+consumer/            Example client: a static web page that calls the live API
 .agents/             Rules and skills the coding agent follows
 ```
 

@@ -1,0 +1,235 @@
+/* Every colour, spacing, shadow and type value comes from design-tokens.css
+   (.agents/rules/design-system-rule.md): colour roles only, never primitives or literals. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: var(--spacing-collection-base-spacing);
+  background: var(--color-roles-background);
+  color: var(--color-roles-on-surface);
+  font-family: var(--typography-body-body-large-regular-fontfamily), system-ui, sans-serif;
+  font-size: var(--typography-body-body-large-regular-fontsize);
+  line-height: var(--typography-body-body-large-regular-lineheight);
+}
+
+main,
+.masthead,
+.notice {
+  max-width: 960px;
+  margin-inline: auto;
+}
+
+h1 {
+  font-family: var(--typography-headline-headline-large-fontfamily), serif;
+  font-size: var(--typography-headline-headline-large-fontsize);
+  font-weight: var(--typography-headline-headline-large-fontweight);
+  line-height: var(--typography-headline-headline-large-lineheight);
+  margin: 0 0 var(--spacing-collection-small-spacing);
+}
+
+h2 {
+  font-family: var(--typography-headline-headline-small-fontfamily), serif;
+  font-size: var(--typography-headline-headline-small-fontsize);
+  font-weight: var(--typography-headline-headline-small-fontweight);
+  line-height: var(--typography-headline-headline-small-lineheight);
+  margin: var(--spacing-collection-very-large-spacing) 0 var(--spacing-collection-base-spacing);
+}
+
+h3 {
+  font-family: var(--typography-title-title-small-fontfamily), sans-serif;
+  font-size: var(--typography-title-title-small-fontsize);
+  font-weight: var(--typography-title-title-small-fontweight);
+  line-height: var(--typography-title-title-small-lineheight);
+  margin: 0;
+}
+
+.muted,
+.caption {
+  color: var(--color-roles-on-neutral-variant-container);
+}
+
+.caption {
+  font-size: var(--typography-caption-fontsize);
+  line-height: var(--typography-caption-lineheight);
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+section {
+  background: var(--color-roles-surface-container);
+  color: var(--color-roles-on-surface-container);
+  border-radius: var(--spacing-collection-medium-spacing);
+  padding: var(--spacing-collection-base-spacing) var(--spacing-collection-large-spacing);
+  margin-bottom: var(--spacing-collection-large-spacing);
+  box-shadow: var(--effect-ambient-shadow-soft);
+}
+
+section h2 {
+  margin-top: 0;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-collection-extra-small-spacing);
+  font-size: var(--typography-body-body-small-semibold-fontsize);
+  font-weight: var(--typography-body-body-small-semibold-fontweight);
+}
+
+input,
+select {
+  font: inherit;
+  font-weight: var(--typography-body-body-large-regular-fontweight);
+  padding: var(--spacing-collection-small-spacing);
+  border: 1px solid var(--color-roles-outline);
+  border-radius: var(--spacing-collection-small-spacing);
+  background: var(--color-roles-surface);
+  color: var(--color-roles-on-surface);
+  min-width: 0;
+}
+
+button {
+  font-family: var(--typography-button-button-small-fontfamily), sans-serif;
+  font-size: var(--typography-button-button-small-fontsize);
+  font-weight: var(--typography-button-button-small-fontweight);
+  padding: var(--spacing-collection-small-spacing) var(--spacing-collection-base-spacing);
+  border: none;
+  border-radius: var(--spacing-collection-large-spacing);
+  background: var(--color-roles-primary);
+  color: var(--color-roles-on-primary);
+  cursor: pointer;
+}
+
+button.secondary {
+  background: var(--color-roles-secondary-container);
+  color: var(--color-roles-on-secondary-container);
+}
+
+button:disabled {
+  background: var(--color-roles-neutral-container);
+  color: var(--color-roles-on-neutral-container);
+  cursor: not-allowed;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-collection-medium-spacing);
+  align-items: flex-end;
+  margin-bottom: var(--spacing-collection-base-spacing);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-collection-medium-spacing);
+  max-width: 420px;
+}
+
+.cards,
+.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--spacing-collection-small-spacing);
+}
+
+.cards {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-collection-extra-small-spacing);
+  padding: var(--spacing-collection-medium-spacing);
+  border-radius: var(--spacing-collection-small-spacing);
+  background: var(--color-roles-surface);
+  color: var(--color-roles-on-surface);
+  border: 1px solid var(--color-roles-outline-variant);
+}
+
+.card.selected {
+  background: var(--color-roles-primary-container);
+  color: var(--color-roles-on-primary-container);
+  border-color: var(--color-roles-primary);
+}
+
+.card button {
+  align-self: flex-start;
+  margin-top: var(--spacing-collection-small-spacing);
+}
+
+.line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--spacing-collection-small-spacing);
+  align-items: center;
+}
+
+.pager {
+  display: flex;
+  gap: var(--spacing-collection-medium-spacing);
+  align-items: center;
+  margin-top: var(--spacing-collection-base-spacing);
+}
+
+/* Failures use error roles only; a placed order uses success roles (design-system rule). */
+.notice {
+  padding: var(--spacing-collection-medium-spacing) var(--spacing-collection-base-spacing);
+  border-radius: var(--spacing-collection-small-spacing);
+  margin-bottom: var(--spacing-collection-base-spacing);
+  background: var(--color-roles-error-container);
+  color: var(--color-roles-on-error-container);
+}
+
+.notice.warning {
+  background: var(--color-roles-warning-container);
+  color: var(--color-roles-on-warning-container);
+}
+
+.result {
+  margin-top: var(--spacing-collection-base-spacing);
+  padding: var(--spacing-collection-base-spacing);
+  border-radius: var(--spacing-collection-small-spacing);
+  background: var(--color-roles-success-container);
+  color: var(--color-roles-on-success-container);
+}
+
+.status {
+  display: inline-block;
+  padding: var(--spacing-collection-extra-small-spacing) var(--spacing-collection-small-spacing);
+  border-radius: var(--spacing-collection-small-spacing);
+  font-size: var(--typography-overline-fontsize);
+  font-weight: var(--typography-overline-fontweight);
+  letter-spacing: var(--typography-overline-letterspacing);
+  background: var(--color-roles-tertiary-container);
+  color: var(--color-roles-on-tertiary-container);
+}
+
+.status.DELIVERED {
+  background: var(--color-roles-success-container);
+  color: var(--color-roles-on-success-container);
+}
+
+/* Cancelled is a finished state, not a failure, so it is neutral rather than an error colour. */
+.status.CANCELLED {
+  background: var(--color-roles-neutral-container);
+  color: var(--color-roles-on-neutral-container);
+}
+
+.panel {
+  margin-top: var(--spacing-collection-base-spacing);
+  padding: var(--spacing-collection-base-spacing);
+  border-radius: var(--spacing-collection-small-spacing);
+  background: var(--color-roles-neutral-variant-container);
+  color: var(--color-roles-on-neutral-variant-container);
+}

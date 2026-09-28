@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Food Market</title>
+    <meta name="description" content="Browse Lagos restaurants, order, and track your order." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Lora:wght@500;600&display=swap"
+    />
+    <link rel="stylesheet" href="design-tokens.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <header class="masthead">
+      <h1>Food Market</h1>
+      <p class="muted">
+        An example client of the Restaurant API. Talking to
+        <code id="api-base"></code> · <span id="api-status">checking…</span>
+      </p>
+    </header>
+
+    <div id="notice" class="notice" role="alert" hidden></div>
+
+    <main>
+      <section aria-labelledby="restaurants-heading">
+        <h2 id="restaurants-heading">1. Choose a restaurant</h2>
+        <form id="restaurant-filters" class="filters">
+          <label>Area <input name="area" placeholder="e.g. Yaba" /></label>
+          <label>Cuisine <input name="cuisine" placeholder="e.g. Nigerian" /></label>
+          <label
+            >Sort by
+            <select name="sort">
+              <option value="name">Name</option>
+              <option value="rating">Rating</option>
+              <option value="deliveryFee">Delivery fee</option>
+            </select>
+          </label>
+          <label
+            >Order
+            <select name="order">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </label>
+          <button type="submit">Search</button>
+        </form>
+        <ul id="restaurants" class="cards"></ul>
+        <nav class="pager" aria-label="Restaurant pages">
+          <button id="restaurants-prev" type="button">← Previous</button>
+          <span id="restaurants-range" class="muted"></span>
+          <button id="restaurants-next" type="button">Next →</button>
+        </nav>
+      </section>
+
+      <section id="menu-section" aria-labelledby="menu-heading" hidden>
+        <h2 id="menu-heading">2. Pick from the menu</h2>
+        <p id="menu-restaurant" class="muted"></p>
+        <form id="menu-filters" class="filters">
+          <label>Category <input name="category" placeholder="e.g. Mains" /></label>
+          <label
+            >Sort by
+            <select name="sort">
+              <option value="category">Category</option>
+              <option value="name">Name</option>
+              <option value="price">Price</option>
+            </select>
+          </label>
+          <label
+            >Order
+            <select name="order">
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </label>
+          <button type="submit">Filter</button>
+        </form>
+        <ul id="menu" class="cards"></ul>
+        <nav class="pager" aria-label="Menu pages">
+          <button id="menu-prev" type="button">← Previous</button>
+          <span id="menu-range" class="muted"></span>
+          <button id="menu-next" type="button">Next →</button>
+        </nav>
+      </section>
+
+      <section id="order-section" aria-labelledby="order-heading" hidden>
+        <h2 id="order-heading">3. Place your order</h2>
+        <ul id="cart" class="lines"></ul>
+        <p id="cart-estimate-line" class="muted">
+          Estimate <strong id="cart-estimate"></strong>. The restaurant's server works out the final
+          total.
+        </p>
+        <form id="order-form" class="stack">
+          <label>Your name <input name="name" required autocomplete="name" /></label>
+          <label
+            >Phone
+            <input
+              name="phone"
+              required
+              placeholder="+2348031234567"
+              pattern="\+234\d{10}"
+              title="+234 followed by 10 digits"
+              autocomplete="tel"
+          /></label>
+          <label>Delivery area <input name="area" required placeholder="e.g. Yaba" /></label>
+          <button type="submit">Place order</button>
+        </form>
+      </section>
+
+      <section aria-labelledby="track-heading">
+        <h2 id="track-heading">4. Track an order</h2>
+        <form id="track-form" class="stack">
+          <label>Order id <input name="orderId" required /></label>
+          <label>Tracking token <input name="token" required placeholder="otk_…" /></label>
+          <button type="submit">Check status</button>
+        </form>
+        <div id="tracked"></div>
+      </section>
+    </main>
+  </body>
+</html>
