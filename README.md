@@ -286,6 +286,7 @@ Every error, from every endpoint, including unknown paths and unsupported method
 | 405    | `METHOD_NOT_ALLOWED`                                                                                                        | The path exists but not with that method                                             |
 | 409    | `INVALID_TRANSITION`, `STATUS_CHANGED`                                                                                      | A status change the rules forbid, or someone else changed the order first            |
 | 422    | `ITEM_NOT_FOUND`, `ITEM_FROM_OTHER_RESTAURANT`, `ITEM_UNAVAILABLE`, `DUPLICATE_ITEM`, `INVALID_QUANTITY`, `TOTAL_TOO_LARGE` | An order breaks a rule; the message says which item                                  |
+| 429    | `RATE_LIMITED`                                                                                                              | Too many requests from one address; `Retry-After` says how many seconds to wait      |
 | 500    | `INTERNAL_ERROR`                                                                                                            | Anything unexpected. Details are logged, never returned                              |
 
 ### Lists: pagination, filtering and sorting
@@ -310,6 +311,27 @@ Every list endpoint takes the same parameters:
 | `/api/v1/restaurants`           | `area`, `cuisine` (exact, any case), `minRating`, `maxDeliveryFee`                                              | `name`, `rating`, `deliveryFee`         | `asc`           |
 | `/api/v1/restaurants/{id}/menu` | `category` (exact, any case), `minPrice`, `maxPrice`, `available` (staff; others only ever see available items) | `category` (then name), `name`, `price` | `asc`           |
 | `/api/v1/orders`                | `status`, `from` and `to` (ISO 8601 date-times on `createdAt`)                                                  | `createdAt`, `total`                    | `desc`          |
+
+### Rate limiting
+
+Most of the API needs no key, so each client address gets a request budget: by default **100
+requests per minute**, across every `/api/` path, staff and customers alike. Request 101 gets
+`429 Too Many Requests` with a `Retry-After` header (seconds until the budget resets) and the
+usual error envelope. The limit runs before any route, in `apps/api/src/proxy.ts`.
+
+- **The numbers live in one file:** `apps/api/src/config/rate-limit.ts` (`limit`,
+  `windowSeconds`, `trustedProxies`). No handler contains a rate-limit number.
+- **Fixed window per address.** A client's minute starts with its first request; the count
+  resets when the minute ends.
+- **Counts are kept in memory.** They reset when the server restarts, and each server process
+  counts on its own: with several copies behind a load balancer, or on a host that runs the proxy
+  at the edge, the effective limit is higher. A shared store is the next step if that matters.
+- **The client address comes from `X-Forwarded-For`**, because Next.js does not expose the
+  connection's own address. A client can write that header itself, so only the entries added by
+  proxies we control are trusted: with `trustedProxies: 1` (the default), the **last** address
+  in the header, the one the nearest proxy appended. **Always deploy behind a proxy that appends
+  to `X-Forwarded-For`** (Vercel, Render, Nginx and most load balancers do). On a bare
+  `next start`, a client that forges the header can dodge the limit.
 
 ## Open questions
 

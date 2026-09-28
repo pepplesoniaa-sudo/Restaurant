@@ -259,6 +259,7 @@ export type ErrorCode =
   | 'DUPLICATE_ITEM'
   | 'INVALID_QUANTITY'
   | 'TOTAL_TOO_LARGE'
+  | 'RATE_LIMITED'
   | 'INTERNAL_ERROR';
 
 export type ErrorEnvelope = { error: { code: ErrorCode; message: string } };
