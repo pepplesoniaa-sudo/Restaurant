@@ -276,29 +276,34 @@ Every error, from every endpoint, including unknown paths and unsupported method
 { "error": { "code": "NOT_FOUND", "message": "Restaurant not found" } }
 ```
 
-| Status | `code`                                                                                                                      | When                                                                      |
-| ------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 400    | `VALIDATION_ERROR`                                                                                                          | A bad id, query parameter or body; the message names the field            |
-| 401    | `UNAUTHORIZED`                                                                                                              | A staff endpoint without a valid key, or any request with an invalid key  |
-| 403    | `FORBIDDEN`                                                                                                                 | Staff acting on a restaurant that isn't theirs                            |
-| 404    | `NOT_FOUND`                                                                                                                 | No such resource, or not visible to this caller                           |
-| 405    | `METHOD_NOT_ALLOWED`                                                                                                        | The path exists but not with that method                                  |
-| 409    | `INVALID_TRANSITION`, `STATUS_CHANGED`                                                                                      | A status change the rules forbid, or someone else changed the order first |
-| 422    | `ITEM_NOT_FOUND`, `ITEM_FROM_OTHER_RESTAURANT`, `ITEM_UNAVAILABLE`, `DUPLICATE_ITEM`, `INVALID_QUANTITY`, `TOTAL_TOO_LARGE` | An order breaks a rule; the message says which item                       |
-| 500    | `INTERNAL_ERROR`                                                                                                            | Anything unexpected. Details are logged, never returned                   |
+| Status | `code`                                                                                                                      | When                                                                                 |
+| ------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| 400    | `VALIDATION_ERROR`                                                                                                          | A bad id or query parameter, or a body that isn't JSON; the message names the field  |
+| 422    | `VALIDATION_ERROR`                                                                                                          | A JSON body that breaks the rules, e.g. a missing field; the message names the field |
+| 401    | `UNAUTHORIZED`                                                                                                              | A staff endpoint without a valid key, or any request with an invalid key             |
+| 403    | `FORBIDDEN`                                                                                                                 | Staff acting on a restaurant that isn't theirs                                       |
+| 404    | `NOT_FOUND`                                                                                                                 | No such resource, or not visible to this caller                                      |
+| 405    | `METHOD_NOT_ALLOWED`                                                                                                        | The path exists but not with that method                                             |
+| 409    | `INVALID_TRANSITION`, `STATUS_CHANGED`                                                                                      | A status change the rules forbid, or someone else changed the order first            |
+| 422    | `ITEM_NOT_FOUND`, `ITEM_FROM_OTHER_RESTAURANT`, `ITEM_UNAVAILABLE`, `DUPLICATE_ITEM`, `INVALID_QUANTITY`, `TOTAL_TOO_LARGE` | An order breaks a rule; the message says which item                                  |
+| 500    | `INTERNAL_ERROR`                                                                                                            | Anything unexpected. Details are logged, never returned                              |
 
 ### Lists: pagination, filtering and sorting
 
 Every list endpoint takes the same parameters:
 
-- **Pagination:** `?limit=` (default 20, at most 100) and `?offset=` (default 0). `meta.total`
+- **Pagination:** `?limit=` (default 20, at most 100; a larger limit is clamped to 100, and
+  `meta.limit` shows the size used) and `?offset=` (default 0). `meta.total`
   is the number of matching rows and `meta.hasMore` says whether another page exists. Offset
   pages can shift if rows are added while someone is paging; at this scale that is accepted.
 - **Sorting:** `?sort=<field>&order=asc|desc`. The id always breaks ties, so the order is fixed.
   Restaurants with no rating always sort last.
 - **Filtering:** by the fields below. Money filters are in kobo.
-- **Invalid values are rejected with `400`**, never ignored or clamped, including a minimum
-  greater than its maximum.
+- **Every other invalid value is rejected with `400`** naming the parameter, never ignored or
+  coerced: a limit below 1, a negative or fractional number, an unknown sort field, a filter
+  value of the wrong type, or a minimum greater than its maximum.
+- **The rules live in one place:** every query, id and body is parsed by a zod schema in
+  `packages/contracts` before any route logic runs.
 
 | List                            | Filters                                                                                                         | `sort` fields (default first)           | Default `order` |
 | ------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------- | --------------- |

@@ -4,14 +4,44 @@ import type { ErrorCode, ListEnvelope } from '@restaurant/contracts';
 // `{ data, meta }`; every error is `{ error: { code, message } }`. Messages describe what the
 // caller sent, never server internals: those go to the log (.agents/rules/security.md).
 
-/** The request body as JSON, or `undefined` if it isn't JSON; schema validation then rejects it. */
-export async function readJson(req: Request): Promise<unknown> {
+type ValidationIssues = { issues: readonly { path: readonly PropertyKey[]; message: string }[] };
+
+/** Any schema from `@restaurant/contracts`: the one place request rules live. */
+type Schema<T> = {
+  safeParse(
+    input: unknown,
+  ): { success: true; data: T } | { success: false; error: ValidationIssues };
+};
+
+export type BodyResult<T> = { ok: true; data: T } | { ok: false; response: Response };
+
+/**
+ * Reads and validates a JSON body (README, Responses). A body that isn't JSON at all is a
+ * malformed request (400); JSON that breaks the schema, such as a missing field, is well-formed
+ * but unprocessable (422). Either way the message names the field.
+ */
+export async function readBody<T>(req: Request, schema: Schema<T>): Promise<BodyResult<T>> {
+  let json: unknown;
   try {
-    return (await req.json()) as unknown;
+    json = await req.json();
   } catch {
-    // Malformed JSON is the caller's mistake, not a server fault, so there is nothing to log.
-    return undefined;
+    // The caller's mistake, not a server fault, so there is nothing to log.
+    return {
+      ok: false,
+      response: apiError(400, 'VALIDATION_ERROR', 'body: Must be valid JSON'),
+    };
   }
+  const parsed = schema.safeParse(json);
+  return parsed.success
+    ? { ok: true, data: parsed.data }
+    : { ok: false, response: apiError(422, 'VALIDATION_ERROR', describeIssue(parsed.error)) };
+}
+
+function describeIssue(error: ValidationIssues): string {
+  const issue = error.issues[0];
+  const field =
+    issue === undefined || issue.path.length === 0 ? 'body' : issue.path.map(String).join('.');
+  return `${field}: ${issue?.message ?? 'Invalid request'}`;
 }
 
 export function ok<T>(data: T): Response {
@@ -35,14 +65,9 @@ export function apiError(
   return Response.json({ error: { code, message } }, { status, ...(headers ? { headers } : {}) });
 }
 
-type ValidationIssues = { issues: readonly { path: readonly PropertyKey[]; message: string }[] };
-
-/** 400 naming the first field that failed validation, e.g. `limit: Too big: expected number to be <=100`. */
+/** 400 for a bad id or query parameter, naming it, e.g. `offset: Must be a whole number, 0 or more`. */
 export function invalid(error: ValidationIssues): Response {
-  const issue = error.issues[0];
-  const field =
-    issue === undefined || issue.path.length === 0 ? 'body' : issue.path.map(String).join('.');
-  return apiError(400, 'VALIDATION_ERROR', `${field}: ${issue?.message ?? 'Invalid request'}`);
+  return apiError(400, 'VALIDATION_ERROR', describeIssue(error));
 }
 
 /** No valid staff key. The message never says whether it was missing, malformed or unknown. */

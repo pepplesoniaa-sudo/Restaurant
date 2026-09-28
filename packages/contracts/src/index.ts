@@ -4,6 +4,13 @@ import { z } from 'zod';
 // The version 1 API contract (README, API). Every request is parsed with these schemas before it
 // reaches a module, and every response has one of the envelope shapes at the bottom.
 
+// A field that is simply absent says so plainly, e.g. `customer.phone: Required`, instead of
+// zod's "expected string, received undefined". Every other message is zod's own or set below.
+z.config({
+  customError: (issue) =>
+    issue.code === 'invalid_type' && issue.input === undefined ? 'Required' : undefined,
+});
+
 /** The largest value a Postgres INTEGER column can hold. */
 export const MAX_INT4 = 2_147_483_647;
 
@@ -18,23 +25,32 @@ export const MenuItemIdParams = z.object({ menuItemId: z.cuid() });
 export const OrderIdParams = z.object({ orderId: z.cuid() });
 
 // ---------------------------------------------------------------------------------------------
-// Query strings. Values arrive as text and are parsed strictly: an empty, fractional or
-// out-of-range number is rejected, never coerced to 0 or clamped (README, Lists).
+// Query strings. Values arrive as text and are parsed strictly: an empty, negative or fractional
+// number is rejected, never coerced to 0. The one exception is a `limit` above the maximum page
+// size, which is clamped to it (README, Lists).
 
 function wholeNumber(min: number, max: number) {
   return z
     .string()
-    .regex(/^\d+$/, 'Must be a whole number')
+    .regex(/^\d+$/, `Must be a whole number, ${min} or more`)
     .transform(Number)
-    .pipe(z.number().min(min).max(max));
+    .pipe(z.number().min(min, `Must be ${min} or more`).max(max, `Must be ${max} or less`));
 }
+
+/** Asking for more than a page holds gets a full page, not an error; `meta.limit` shows the size used. */
+const pageSize = z
+  .string()
+  .regex(/^\d+$/, 'Must be a whole number, 1 or more')
+  .transform(Number)
+  .pipe(z.number().min(1, 'Must be 1 or more'))
+  .transform((size) => Math.min(size, MAX_PAGE_SIZE));
 
 const text = z.string().trim().min(1).optional();
 const kobo = wholeNumber(0, MAX_INT4).optional();
 const sortOrder = z.enum(['asc', 'desc']);
 
 const listQuery = {
-  limit: wholeNumber(1, MAX_PAGE_SIZE).default(DEFAULT_PAGE_SIZE),
+  limit: pageSize.default(DEFAULT_PAGE_SIZE),
   offset: wholeNumber(0, MAX_INT4).default(0),
 };
 

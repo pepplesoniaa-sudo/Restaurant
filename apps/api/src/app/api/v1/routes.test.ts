@@ -111,7 +111,7 @@ describe('GET /api/v1/restaurants', () => {
 
   it.each([
     ['limit', '?limit=0'],
-    ['limit', '?limit=101'],
+    ['limit', '?limit=-5'],
     ['limit', '?limit='],
     ['limit', '?limit=2.5'],
     ['offset', '?offset=-1'],
@@ -126,6 +126,31 @@ describe('GET /api/v1/restaurants', () => {
 
     expect(message.startsWith(`${field}:`)).toBe(true);
     expect(listRestaurants).not.toHaveBeenCalled();
+  });
+
+  it.each(['101', '5000', '99999999999999999999'])(
+    'clamps limit=%s to the maximum of 100 instead of honouring it (README, Lists)',
+    async (limit) => {
+      listRestaurants.mockResolvedValue(emptyList);
+
+      const res = await list(`?limit=${limit}`);
+
+      expect(res.status).toBe(200);
+      expect(listRestaurants.mock.calls[0]?.[0].limit).toBe(100);
+    },
+  );
+
+  it('says what a negative offset should be', async () => {
+    expect(await expectError(await list('?offset=-5'), 400, 'VALIDATION_ERROR')).toBe(
+      'offset: Must be a whole number, 0 or more',
+    );
+  });
+
+  it('names the allowed fields for an unknown sort', async () => {
+    const message = await expectError(await list('?sort=popularity'), 400, 'VALIDATION_ERROR');
+
+    expect(message).toContain('name');
+    expect(message).toContain('deliveryFee');
   });
 
   it('returns a generic 500 without leaking the error', async () => {
@@ -259,11 +284,25 @@ describe('POST /api/v1/restaurants/{id}/menu', () => {
     ['price', { ...valid, price: 0 }],
     ['price', { ...valid, price: '3500' }],
     ['name', { ...valid, name: ' ' }],
-    ['body', 'not json'],
-  ])('rejects a bad %s', async (field, body) => {
+  ])('rejects a bad %s with 422 naming it', async (field, body) => {
     expect(
-      (await expectError(await post(body), 400, 'VALIDATION_ERROR')).startsWith(`${field}:`),
+      (await expectError(await post(body), 422, 'VALIDATION_ERROR')).startsWith(`${field}:`),
     ).toBe(true);
+  });
+
+  it.each([
+    ['name', { category: valid.category, price: valid.price }],
+    ['category', { name: valid.name, price: valid.price }],
+    ['price', { name: valid.name, category: valid.category }],
+  ])('rejects a missing %s with 422 saying it is required', async (field, body) => {
+    expect(await expectError(await post(body), 422, 'VALIDATION_ERROR')).toBe(`${field}: Required`);
+    expect(createMenuItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects a body that is not JSON with 400', async () => {
+    expect(await expectError(await post('not json'), 400, 'VALIDATION_ERROR')).toBe(
+      'body: Must be valid JSON',
+    );
   });
 });
 
@@ -294,7 +333,7 @@ describe('/api/v1/menu-items/{id}', () => {
   it('PATCH rejects an empty change', async () => {
     await expectError(
       await menuItemRoute.PATCH(req('/x', { method: 'PATCH', body: {} }), ctx),
-      400,
+      422,
       'VALIDATION_ERROR',
     );
   });
@@ -354,10 +393,25 @@ describe('POST /api/v1/orders', () => {
     await expectError(await post(valid), 404, 'NOT_FOUND');
   });
 
+  it.each([
+    ['restaurantId', { customer: valid.customer, items: valid.items }],
+    ['customer.name', { ...valid, customer: { phone: valid.customer.phone, area: 'Yaba' } }],
+    ['items', { restaurantId, customer: valid.customer }],
+    ['items.0.quantity', { ...valid, items: [{ menuItemId }] }],
+    ['restaurantId', { ...valid, restaurantId: '42' }],
+    ['items.0.menuItemId', { ...valid, items: [{ menuItemId: '../etc', quantity: 1 }] }],
+  ])('rejects a missing or malformed %s with 422 naming the field', async (field, body) => {
+    // A missing field reads "Required"; a malformed one says what is wrong with it.
+    const message = await expectError(await post(body), 422, 'VALIDATION_ERROR');
+
+    expect(message.startsWith(`${field}:`)).toBe(true);
+    expect(placeOrder).not.toHaveBeenCalled();
+  });
+
   it('rejects a local-format phone, naming the field', async () => {
     const message = await expectError(
       await post({ ...valid, customer: { ...valid.customer, phone: '08031234567' } }),
-      400,
+      422,
       'VALIDATION_ERROR',
     );
 
@@ -442,8 +496,8 @@ describe('/api/v1/orders/{id}', () => {
     ['anything but status', { status: 'CONFIRMED', total: 1 }],
     ['no status', {}],
     ['an unknown status', { status: 'SHIPPED' }],
-  ])('PATCH rejects %s', async (_label, body) => {
-    await expectError(await patch(body), 400, 'VALIDATION_ERROR');
+  ])('PATCH rejects %s with 422', async (_label, body) => {
+    await expectError(await patch(body), 422, 'VALIDATION_ERROR');
     expect(changeOrderStatus).not.toHaveBeenCalled();
   });
 
@@ -504,6 +558,73 @@ describe('unknown paths', () => {
       expect(message).toContain('/api/v1/');
     },
   );
+});
+
+describe('malformed identifiers', () => {
+  // Each is rejected before any module (and so the database) is reached: never a 500.
+  const bad = ['57', 'abc', "clx'; DROP TABLE", '%00', 'x'.repeat(500)];
+
+  it.each(bad)('every id route answers %j with 400 naming the id', async (id) => {
+    const token = 'otk_' + 'A'.repeat(43);
+    const withToken = new Request('http://localhost/api/v1/orders/x', {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    const responses: [string, Response][] = [
+      ['restaurantId', await restaurantRoute.GET(req('/x'), params({ restaurantId: id }))],
+      [
+        'restaurantId',
+        await menuRoute.GET(req('/x', { key: false }), params({ restaurantId: id })),
+      ],
+      [
+        'restaurantId',
+        await menuRoute.POST(
+          req('/x', { method: 'POST', body: { name: 'Suya', category: 'Grills', price: 100 } }),
+          params({ restaurantId: id }),
+        ),
+      ],
+      [
+        'menuItemId',
+        await menuItemRoute.GET(req('/x', { key: false }), params({ menuItemId: id })),
+      ],
+      [
+        'menuItemId',
+        await menuItemRoute.PATCH(
+          req('/x', { method: 'PATCH', body: { price: 1 } }),
+          params({ menuItemId: id }),
+        ),
+      ],
+      ['orderId', await orderRoute.GET(req('/x'), params({ orderId: id }))],
+      ['orderId', await orderRoute.GET(withToken, params({ orderId: id }))],
+      [
+        'orderId',
+        await orderRoute.PATCH(
+          req('/x', { method: 'PATCH', body: { status: 'CONFIRMED' } }),
+          params({ orderId: id }),
+        ),
+      ],
+      [
+        'orderId',
+        await orderRoute.DELETE(req('/x', { method: 'DELETE' }), params({ orderId: id })),
+      ],
+    ];
+
+    for (const [field, res] of responses) {
+      expect((await expectError(res, 400, 'VALIDATION_ERROR')).startsWith(`${field}:`)).toBe(true);
+    }
+    for (const moduleFn of [
+      getRestaurant,
+      listMenu,
+      createMenuItem,
+      getMenuItem,
+      updateMenuItem,
+      getOrder,
+      getTrackedOrder,
+      changeOrderStatus,
+      cancelOrder,
+    ]) {
+      expect(moduleFn).not.toHaveBeenCalled();
+    }
+  });
 });
 
 describe('status change messages', () => {

@@ -5,7 +5,7 @@ import {
   notFound,
   okList,
   queryOf,
-  readJson,
+  readBody,
   serverError,
   unauthorized,
   unprocessable,
@@ -35,8 +35,8 @@ export async function GET(req: Request): Promise<Response> {
 /** Anyone: places an order. */
 export async function POST(req: Request): Promise<Response> {
   try {
-    const input = PlaceOrderInput.safeParse(await readJson(req));
-    if (!input.success) return invalid(input.error);
+    const input = await readBody(req, PlaceOrderInput);
+    if (!input.ok) return input.response;
 
     const result = await placeOrder(input.data);
     if (result.ok) return created(result.order);

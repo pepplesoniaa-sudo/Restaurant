@@ -1,4 +1,4 @@
-import { RestaurantListQuery } from '@restaurant/contracts';
+import { MenuItemCreateInput, RestaurantListQuery } from '@restaurant/contracts';
 import { describe, expect, it } from 'vitest';
 import {
   conflict,
@@ -10,6 +10,7 @@ import {
   ok,
   okList,
   queryOf,
+  readBody,
   serverError,
   unauthorized,
   unprocessable,
@@ -56,14 +57,59 @@ describe('error envelopes', () => {
     expect(unauthorized().headers.get('www-authenticate')).toBe('Bearer');
   });
 
-  it('names the field that failed validation', async () => {
-    const parsed = RestaurantListQuery.safeParse({ limit: '101' });
+  it('names the query parameter that failed validation, with 400', async () => {
+    const parsed = RestaurantListQuery.safeParse({ offset: '-1' });
     if (parsed.success) throw new Error('expected a failure');
 
-    const body = await invalid(parsed.error).json();
+    const res = invalid(parsed.error);
 
-    expect(body.error.code).toBe('VALIDATION_ERROR');
-    expect(body.error.message).toMatch(/^limit: /);
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toEqual({
+      code: 'VALIDATION_ERROR',
+      message: 'offset: Must be a whole number, 0 or more',
+    });
+  });
+});
+
+describe('readBody', () => {
+  const post = (body: string) => new Request('http://x/api', { method: 'POST', body });
+
+  it('returns the parsed body when it follows the schema', async () => {
+    expect(
+      await readBody(post('{"name":"Suya","category":"Grills","price":100}'), MenuItemCreateInput),
+    ).toEqual({
+      ok: true,
+      data: { name: 'Suya', category: 'Grills', price: 100 },
+    });
+  });
+
+  it('answers a missing field with 422, naming it as required', async () => {
+    const result = await readBody(post('{"name":"Suya","price":100}'), MenuItemCreateInput);
+    if (result.ok) throw new Error('expected a failure');
+
+    expect(result.response.status).toBe(422);
+    expect((await result.response.json()).error).toEqual({
+      code: 'VALIDATION_ERROR',
+      message: 'category: Required',
+    });
+  });
+
+  it.each(['{not json', '', 'undefined'])(
+    'answers %j, which is not JSON, with 400',
+    async (raw) => {
+      const result = await readBody(post(raw), MenuItemCreateInput);
+      if (result.ok) throw new Error('expected a failure');
+
+      expect(result.response.status).toBe(400);
+      expect((await result.response.json()).error.message).toBe('body: Must be valid JSON');
+    },
+  );
+
+  it('answers JSON that is not an object with 422', async () => {
+    const result = await readBody(post('[1,2]'), MenuItemCreateInput);
+    if (result.ok) throw new Error('expected a failure');
+
+    expect(result.response.status).toBe(422);
   });
 });
 

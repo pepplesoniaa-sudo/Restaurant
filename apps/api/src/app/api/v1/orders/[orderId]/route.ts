@@ -1,5 +1,5 @@
 import { OrderIdParams, OrderUpdateInput } from '@restaurant/contracts';
-import { conflict, invalid, notFound, ok, readJson, serverError, unauthorized } from '@/lib/http';
+import { conflict, invalid, notFound, ok, readBody, serverError, unauthorized } from '@/lib/http';
 import { log } from '@/lib/log';
 import { parseTrackingToken } from '@/lib/tracking-token';
 import { isFinal } from '@/modules/orders/order-status';
@@ -69,8 +69,8 @@ export async function PATCH(req: Request, ctx: Ctx): Promise<Response> {
 
     const params = OrderIdParams.safeParse(await ctx.params);
     if (!params.success) return invalid(params.error);
-    const input = OrderUpdateInput.safeParse(await readJson(req));
-    if (!input.success) return invalid(input.error);
+    const input = await readBody(req, OrderUpdateInput);
+    if (!input.ok) return input.response;
 
     return statusResponse(await changeOrderStatus(staff, params.data.orderId, input.data.status));
   } catch (err) {

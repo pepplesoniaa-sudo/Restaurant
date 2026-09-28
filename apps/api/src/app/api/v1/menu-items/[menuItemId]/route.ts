@@ -1,5 +1,5 @@
 import { MenuItemIdParams, MenuItemUpdateInput } from '@restaurant/contracts';
-import { invalid, notFound, ok, readJson, serverError, unauthorized } from '@/lib/http';
+import { invalid, notFound, ok, readBody, serverError, unauthorized } from '@/lib/http';
 import { log } from '@/lib/log';
 import { getMenuItem, updateMenuItem } from '@/modules/menu-items/menu-items';
 import { authenticateOptionalStaff, authenticateStaff } from '@/modules/restaurants/staff-auth';
@@ -29,8 +29,8 @@ export async function PATCH(req: Request, ctx: Ctx): Promise<Response> {
 
     const params = MenuItemIdParams.safeParse(await ctx.params);
     if (!params.success) return invalid(params.error);
-    const input = MenuItemUpdateInput.safeParse(await readJson(req));
-    if (!input.success) return invalid(input.error);
+    const input = await readBody(req, MenuItemUpdateInput);
+    if (!input.ok) return input.response;
 
     const item = await updateMenuItem(staff, params.data.menuItemId, input.data);
     return item === null ? notFound('Menu item not found') : ok(item);

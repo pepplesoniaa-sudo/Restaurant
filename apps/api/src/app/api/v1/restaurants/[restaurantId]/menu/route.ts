@@ -6,7 +6,7 @@ import {
   notFound,
   okList,
   queryOf,
-  readJson,
+  readBody,
   serverError,
   unauthorized,
 } from '@/lib/http';
@@ -41,8 +41,8 @@ export async function POST(req: Request, ctx: Ctx): Promise<Response> {
 
     const params = RestaurantIdParams.safeParse(await ctx.params);
     if (!params.success) return invalid(params.error);
-    const input = MenuItemCreateInput.safeParse(await readJson(req));
-    if (!input.success) return invalid(input.error);
+    const input = await readBody(req, MenuItemCreateInput);
+    if (!input.ok) return input.response;
 
     const result = await createMenuItem(staff, params.data.restaurantId, input.data);
     return result.ok
