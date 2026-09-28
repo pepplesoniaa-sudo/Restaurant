@@ -105,6 +105,25 @@ Every field is **required** unless marked optional. Types are the Prisma types t
 still show what the customer actually paid. Reading the price live from `MenuItem` would rewrite
 history, so each order line keeps its own copy.
 
+### Operational tables
+
+Tables the API needs to run that are **not** part of the food market: they belong to no resource,
+point at nothing, and nothing points at them, so they don't appear on the diagram.
+
+#### RateLimitWindow
+
+One row per client address currently being rate-limited — see [Rate limiting](#rate-limiting).
+
+| Field       | Type       | Required | Notes                                                       |
+| ----------- | ---------- | -------- | ----------------------------------------------------------- |
+| id          | `String`   | yes      | Generated cuid, like every other table                      |
+| key         | `String`   | yes      | **Unique.** The client address the budget belongs to        |
+| windowStart | `DateTime` | yes      | When this address's current window began                    |
+| count       | `Int`      | yes      | Requests made in the current window, including refused ones |
+
+Rows for finished windows are deleted regularly, so the table only ever holds addresses seen in
+the last few minutes. Client addresses are kept no longer than that.
+
 ## Order status
 
 `status` is a fixed list (a Prisma enum), never free text:
@@ -323,9 +342,12 @@ usual error envelope. The limit runs before any route, in `apps/api/src/proxy.ts
   `windowSeconds`, `trustedProxies`). No handler contains a rate-limit number.
 - **Fixed window per address.** A client's minute starts with its first request; the count
   resets when the minute ends.
-- **Counts are kept in memory.** They reset when the server restarts, and each server process
-  counts on its own: with several copies behind a load balancer, or on a host that runs the proxy
-  at the edge, the effective limit is higher. A shared store is the next step if that matters.
+- **Counts are kept in PostgreSQL** (`RateLimitWindow`), so every server process shares one
+  count and a restart doesn't reset it. Each request is counted with one atomic SQL statement,
+  so simultaneous requests can't slip past the limit. It costs one database write per request.
+- **If the database can't be reached, requests are let through** and the failure is logged:
+  every route needs the database anyway, so refusing would only add a second, confusing error.
+- **Finished windows are deleted** at most once per window length per server process.
 - **The client address comes from `X-Forwarded-For`**, because Next.js does not expose the
   connection's own address. A client can write that header itself, so only the entries added by
   proxies we control are trusted: with `trustedProxies: 1` (the default), the **last** address

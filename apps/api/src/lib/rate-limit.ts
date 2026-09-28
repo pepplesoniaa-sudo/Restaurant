@@ -1,7 +1,9 @@
 import { apiError } from './http';
+import { log } from './log';
 
-// Fixed-window rate limiting keyed on client address (README, Rate limiting). Pure apart from the
-// injected clock, so every rule can be tested without waiting a minute.
+// Fixed-window rate limiting keyed on client address (README, Rate limiting). The counting lives
+// in a store (PostgreSQL in production, see rate-limit-store.ts); what to do with a count is
+// decided here, by pure functions.
 
 /** Used when no trustworthy address can be found: such callers share one budget. */
 export const UNKNOWN_CLIENT = 'unknown';
@@ -20,70 +22,42 @@ export function clientAddress(forwardedFor: string | null, trustedProxies: numbe
   return entries[entries.length - trustedProxies] ?? UNKNOWN_CLIENT;
 }
 
-export type LimitDecision =
-  { allowed: true; remaining: number } | { allowed: false; retryAfterSeconds: number };
+/** A client's position in its current window, after counting the request just made. */
+export type WindowCount = { count: number; retryAfterMs: number };
 
-type Window = { startedAt: number; count: number };
+export type RateLimitStore = {
+  /** Counts one request from `key` and returns its window's state. */
+  hit(key: string, windowSeconds: number): Promise<WindowCount>;
+};
 
-export class FixedWindowLimiter {
-  private readonly windows = new Map<string, Window>();
-  private lastSweep: number;
+export type LimitDecision = { allowed: true } | { allowed: false; retryAfterSeconds: number };
 
-  constructor(
-    private readonly limit: number,
-    private readonly windowMs: number,
-    private readonly now: () => number = Date.now,
-  ) {
-    this.lastSweep = now();
-  }
-
-  /** Counts one request from `key` and says whether it may go ahead. */
-  hit(key: string): LimitDecision {
-    const now = this.now();
-    this.sweep(now);
-
-    let window = this.windows.get(key);
-    if (window === undefined || now - window.startedAt >= this.windowMs) {
-      window = { startedAt: now, count: 0 };
-      this.windows.set(key, window);
-    }
-
-    if (window.count >= this.limit) {
-      const msLeft = window.startedAt + this.windowMs - now;
-      return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(msLeft / 1000)) };
-    }
-    window.count += 1;
-    return { allowed: true, remaining: this.limit - window.count };
-  }
-
-  /** How many addresses are being tracked; lets tests check that old ones are forgotten. */
-  get size(): number {
-    return this.windows.size;
-  }
-
-  // Forget finished windows once per window length, so memory stays proportional to the
-  // addresses seen recently rather than every address ever seen.
-  private sweep(now: number): void {
-    if (now - this.lastSweep < this.windowMs) return;
-    for (const [key, window] of this.windows) {
-      if (now - window.startedAt >= this.windowMs) this.windows.delete(key);
-    }
-    this.lastSweep = now;
-  }
+export function decide(window: WindowCount, limit: number): LimitDecision {
+  if (window.count <= limit) return { allowed: true };
+  // Whole seconds, rounded up, never 0: "try again in 0 seconds" would invite an instant retry.
+  return { allowed: false, retryAfterSeconds: Math.max(1, Math.ceil(window.retryAfterMs / 1000)) };
 }
 
 /**
  * A request gate for `proxy.ts`: `undefined` lets the request through, a Response refuses it with
- * 429 and Retry-After in the usual error envelope.
+ * 429 and Retry-After in the usual error envelope. If the store fails, the request is let through
+ * and the failure logged: every route needs the database anyway (README, Rate limiting).
  */
 export function createRateLimiter(
   config: { limit: number; windowSeconds: number; trustedProxies: number },
-  now: () => number = Date.now,
-): (req: Request) => Response | undefined {
-  const limiter = new FixedWindowLimiter(config.limit, config.windowSeconds * 1000, now);
-  return (req) => {
+  store: RateLimitStore,
+): (req: Request) => Promise<Response | undefined> {
+  return async (req) => {
     const address = clientAddress(req.headers.get('x-forwarded-for'), config.trustedProxies);
-    const decision = limiter.hit(address);
+    let window: WindowCount;
+    try {
+      window = await store.hit(address, config.windowSeconds);
+    } catch (err) {
+      log.error('rate limit check failed; letting the request through', { err });
+      return undefined;
+    }
+
+    const decision = decide(window, config.limit);
     if (decision.allowed) return undefined;
     const wait = decision.retryAfterSeconds;
     return apiError(

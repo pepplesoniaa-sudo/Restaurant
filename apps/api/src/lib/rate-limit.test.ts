@@ -1,11 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { rateLimitConfig } from '@/config/rate-limit';
-import { clientAddress, createRateLimiter, FixedWindowLimiter, UNKNOWN_CLIENT } from './rate-limit';
+import {
+  clientAddress,
+  createRateLimiter,
+  decide,
+  UNKNOWN_CLIENT,
+  type RateLimitStore,
+} from './rate-limit';
 
-function clock(start = 1_000_000) {
-  let t = start;
-  return { now: () => t, advance: (ms: number) => (t += ms) };
-}
+const logError = vi.fn();
+vi.mock('./log', () => ({ log: { error: (...args: unknown[]) => logError(...args) } }));
+
+beforeEach(() => {
+  logError.mockReset();
+});
 
 describe('clientAddress', () => {
   it('takes the address the nearest trusted proxy appended', () => {
@@ -34,82 +42,51 @@ describe('clientAddress', () => {
   });
 });
 
-describe('FixedWindowLimiter', () => {
-  it('allows exactly `limit` requests in a window, counting down what is left', () => {
-    const limiter = new FixedWindowLimiter(3, 60_000, clock().now);
-
-    expect([limiter.hit('a'), limiter.hit('a'), limiter.hit('a')]).toEqual([
-      { allowed: true, remaining: 2 },
-      { allowed: true, remaining: 1 },
-      { allowed: true, remaining: 0 },
-    ]);
-    expect(limiter.hit('a').allowed).toBe(false);
+describe('decide', () => {
+  it('allows up to and including the limit', () => {
+    expect(decide({ count: 1, retryAfterMs: 59_000 }, 100)).toEqual({ allowed: true });
+    expect(decide({ count: 100, retryAfterMs: 1_000 }, 100)).toEqual({ allowed: true });
   });
 
-  it('says how many whole seconds remain, rounding up and never less than 1', () => {
-    const c = clock();
-    const limiter = new FixedWindowLimiter(1, 60_000, c.now);
-    limiter.hit('a');
-
-    c.advance(36_500);
-    expect(limiter.hit('a')).toEqual({ allowed: false, retryAfterSeconds: 24 });
-
-    c.advance(23_000); // 59.5 s in: half a second left still reads as 1
-    expect(limiter.hit('a')).toEqual({ allowed: false, retryAfterSeconds: 1 });
+  it('refuses the request after the limit, saying how many whole seconds remain', () => {
+    expect(decide({ count: 101, retryAfterMs: 23_500 }, 100)).toEqual({
+      allowed: false,
+      retryAfterSeconds: 24,
+    });
   });
 
-  it('opens a fresh window once the old one ends', () => {
-    const c = clock();
-    const limiter = new FixedWindowLimiter(1, 60_000, c.now);
-    limiter.hit('a');
-    expect(limiter.hit('a').allowed).toBe(false);
-
-    c.advance(60_000);
-    expect(limiter.hit('a')).toEqual({ allowed: true, remaining: 0 });
-  });
-
-  it('keeps a separate budget per address', () => {
-    const limiter = new FixedWindowLimiter(1, 60_000, clock().now);
-    limiter.hit('a');
-
-    expect(limiter.hit('a').allowed).toBe(false);
-    expect(limiter.hit('b').allowed).toBe(true);
-  });
-
-  it('refused requests do not extend the wait', () => {
-    const c = clock();
-    const limiter = new FixedWindowLimiter(1, 60_000, c.now);
-    limiter.hit('a');
-    for (let i = 0; i < 50; i++) limiter.hit('a');
-
-    c.advance(60_000);
-    expect(limiter.hit('a').allowed).toBe(true);
-  });
-
-  it('forgets finished windows so memory does not grow forever', () => {
-    const c = clock();
-    const limiter = new FixedWindowLimiter(5, 60_000, c.now);
-    for (let i = 0; i < 1000; i++) limiter.hit(`10.0.${Math.floor(i / 256)}.${i % 256}`);
-    expect(limiter.size).toBe(1000);
-
-    c.advance(60_000);
-    limiter.hit('fresh');
-    expect(limiter.size).toBe(1);
+  it.each([500, 1, 0, -20])('never says to wait less than 1 second (%i ms left)', (ms) => {
+    expect(decide({ count: 101, retryAfterMs: ms }, 100)).toEqual({
+      allowed: false,
+      retryAfterSeconds: 1,
+    });
   });
 });
 
 describe('createRateLimiter', () => {
+  const config = { limit: 2, windowSeconds: 60, trustedProxies: 1 };
   const from = (xff: string) =>
     new Request('http://localhost/api/v1/restaurants', { headers: { 'x-forwarded-for': xff } });
 
-  it('lets requests through until the limit, then answers 429 with Retry-After', async () => {
-    const c = clock();
-    const gate = createRateLimiter({ limit: 2, windowSeconds: 60, trustedProxies: 1 }, c.now);
+  function storeReturning(count: number, retryAfterMs = 45_000) {
+    const hit = vi.fn<RateLimitStore['hit']>().mockResolvedValue({ count, retryAfterMs });
+    return { hit };
+  }
 
-    expect(gate(from('203.0.113.7'))).toBeUndefined();
-    expect(gate(from('203.0.113.7'))).toBeUndefined();
-    c.advance(15_000);
-    const refused = gate(from('203.0.113.7'));
+  it('counts the request under the trusted client address and window length', async () => {
+    const store = storeReturning(1);
+
+    await createRateLimiter(config, store)(from('forged, 203.0.113.7'));
+
+    expect(store.hit).toHaveBeenCalledExactlyOnceWith('203.0.113.7', 60);
+  });
+
+  it('lets a request within the limit through', async () => {
+    expect(await createRateLimiter(config, storeReturning(2))(from('203.0.113.7'))).toBeUndefined();
+  });
+
+  it('answers a request over the limit with 429, Retry-After and the error envelope', async () => {
+    const refused = await createRateLimiter(config, storeReturning(3))(from('203.0.113.7'));
 
     expect(refused?.status).toBe(429);
     expect(refused?.headers.get('retry-after')).toBe('45');
@@ -118,12 +95,18 @@ describe('createRateLimiter', () => {
     });
   });
 
-  it('cannot be dodged by changing the part of the header the client controls', () => {
-    const gate = createRateLimiter({ limit: 1, windowSeconds: 60, trustedProxies: 1 }, clock().now);
+  it('says "1 second", not "1 seconds"', async () => {
+    const refused = await createRateLimiter(config, storeReturning(3, 400))(from('203.0.113.7'));
+    if (refused === undefined) throw new Error('expected a 429');
 
-    expect(gate(from('forged-1, 203.0.113.7'))).toBeUndefined();
-    expect(gate(from('forged-2, 203.0.113.7'))?.status).toBe(429);
-    expect(gate(from('forged-3, 203.0.113.7'))?.status).toBe(429);
+    expect((await refused.json()).error.message).toBe('Too many requests; try again in 1 second');
+  });
+
+  it('lets the request through and logs when the store fails', async () => {
+    const store = { hit: vi.fn<RateLimitStore['hit']>().mockRejectedValue(new Error('db down')) };
+
+    expect(await createRateLimiter(config, store)(from('203.0.113.7'))).toBeUndefined();
+    expect(logError).toHaveBeenCalledOnce();
   });
 
   it('uses the numbers from the config file', () => {

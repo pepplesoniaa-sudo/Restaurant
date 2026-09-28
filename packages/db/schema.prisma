@@ -88,3 +88,12 @@ model OrderItem {
   @@index([orderId])
   @@index([menuItemId])
 }
+
+// Operational, not part of the food market (README, Operational tables): one row per client
+// address being rate-limited. Linked to nothing; finished windows are deleted regularly.
+model RateLimitWindow {
+  id          String   @id @default(cuid())
+  key         String   @unique // client address
+  windowStart DateTime
+  count       Int
+}
