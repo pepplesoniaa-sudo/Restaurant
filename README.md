@@ -13,6 +13,7 @@ the project's **data design** (see [Data design](#data-design)).
 ## Contents
 
 - [Quick start](#quick-start)
+- [Deploying](#deploying)
 - [Using the API](#using-the-api)
   - [Basics](#basics) · [Authentication](#authentication) · [Responses](#responses) ·
     [Errors](#errors) · [Lists](#lists-pagination-filtering-and-sorting) ·
@@ -53,8 +54,35 @@ To let a restaurant's staff in, issue it a key (see
 npm run staff-key -- <restaurantId>   # prints a new key once; replaces any previous key
 ```
 
-In production, run `npx prisma migrate deploy` instead of `migrate dev`, and deploy behind a
-proxy that sets `X-Forwarded-For` (see [How rate limiting works](#how-rate-limiting-works)).
+## Deploying
+
+Live today:
+
+| What                 | URL                                                 | Vercel project                |
+| -------------------- | --------------------------------------------------- | ----------------------------- |
+| The API              | https://restaurant-api-iota-eight.vercel.app/api/v1 | `restaurant-api`              |
+| The example consumer | https://restaurant-consumer.vercel.app              | `restaurant-consumer`         |
+| The database         | Neon Postgres, US East (same region as the API)     | connected to `restaurant-api` |
+
+How it was set up, from the project root (`npx vercel login` first):
+
+1. **API project.** `restaurant-api`, framework Next.js, root directory `apps/api`, Node 22. The
+   API's build runs `prisma generate` itself, so nothing else is needed.
+2. **Database.** `npx vercel integration add neon` creates a Neon database and sets
+   `DATABASE_URL` (pooled, used by the running API) and `DATABASE_URL_UNPOOLED` (direct) on the
+   project, and copies them into `.env.local` on your machine.
+3. **Tables.** Migrations need the direct connection, so run them with the unpooled URL:
+   `DATABASE_URL=<DATABASE_URL_UNPOOLED> npx prisma migrate deploy`.
+4. **Data, once.** `DATABASE_URL=<DATABASE_URL_UNPOOLED> npm run db:seed -- --confirm-wipe <neon host>`.
+   The seed writes in bulk, so it takes under a minute even far from the database.
+5. **Deploy.** `npx vercel deploy --prod`. A change to environment variables only takes effect
+   after a new deploy.
+6. **Consumer.** From `consumer/`: `npx vercel deploy --prod` (a separate static project, so it
+   calls the API from a different origin like any outside client).
+
+Vercel appends the real client address to `X-Forwarded-For`, which is what rate limiting needs
+(see [How rate limiting works](#how-rate-limiting-works)). Elsewhere, deploy behind a proxy that
+does the same.
 
 ## Using the API
 
