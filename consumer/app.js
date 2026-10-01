@@ -364,14 +364,6 @@ async function trackOrder(event) {
 // ---------------------------------------------------------------------------------------------
 // Start-up
 
-async function checkApi() {
-  $('api-base').textContent = BASE;
-  const result = await callApi('');
-  $('api-status').textContent = result.ok
-    ? `online (${result.data.version})`
-    : `unreachable: ${result.message}`;
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   $('restaurant-filters').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -412,6 +404,5 @@ document.addEventListener('DOMContentLoaded', () => {
     // No saved order, or storage unavailable: the tracking form simply starts empty.
   }
 
-  void checkApi();
   void loadRestaurants();
 });
