@@ -805,13 +805,16 @@ whole API working end to end:
 Every error is shown to the user as `code: message` from the error envelope. On `429` the page
 disables its buttons and counts down the `Retry-After` seconds.
 
-**Run it.** It talks to the live API by default. To point it at a local server instead, add
-`?api=`:
+**Run it locally, alongside the API**, in two terminals from the project root:
 
 ```bash
-npx serve consumer                      # or open consumer/index.html directly in a browser
-# then visit http://localhost:3000/?api=http://localhost:3002
+npm run dev        # terminal 1: the API on http://localhost:3002
+npm run consumer   # terminal 2: the page on http://localhost:5500
 ```
+
+Then open **http://localhost:5500/?api=http://localhost:3002**. Without `?api=`, the page talks to
+the live API instead. The page must be served over `http://` like this: opened straight from
+disk (`file://`), the browser refuses to load its JavaScript.
 
 Its styles use only the project's design tokens. `consumer/design-tokens.css` is a copy of the
 generated root file; refresh it with `npm run consumer:tokens`, never by hand.

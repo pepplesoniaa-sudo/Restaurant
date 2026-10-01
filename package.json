@@ -13,6 +13,7 @@
   "scripts": {
     "dev": "dotenv -e .env -- npm run dev --workspace @restaurant/api",
     "start": "dotenv -e .env -- npm run start --workspace @restaurant/api --",
+    "consumer": "npx --yes serve consumer --listen 5500",
     "db:seed": "dotenv -e .env -- npm run seed --workspace @restaurant/db --",
     "staff-key": "dotenv -e .env -- npm run staff-key --workspace @restaurant/db --",
     "consumer:tokens": "node -e \"require('fs').copyFileSync('design-tokens.css','consumer/design-tokens.css')\"",
