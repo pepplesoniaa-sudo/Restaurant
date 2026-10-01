@@ -5,8 +5,26 @@
 // Which API: the live one by default, or ?api=http://localhost:3002 to try a local server.
 
 const LIVE_API = 'https://restaurant-api-iota-eight.vercel.app';
-const API_ROOT = new URLSearchParams(location.search).get('api') ?? LIVE_API;
-const BASE = `${API_ROOT.replace(/\/$/, '')}/api/v1`;
+const API_PARAM = new URLSearchParams(location.search).get('api');
+
+/**
+ * The API's address from ?api=, forgiving the usual slips: without http:// the browser would treat
+ * "localhost:3002" as a path on this page's own server, and a trailing /api/v1 would be doubled.
+ * null if the value still isn't a web address.
+ */
+function apiRootFrom(param) {
+  if (param === null || param.trim() === '') return LIVE_API;
+  const value = param.trim();
+  const withScheme = /^https?:\/\//i.test(value) ? value : `http://${value}`;
+  try {
+    return new URL(withScheme).origin;
+  } catch {
+    return null;
+  }
+}
+
+const API_ROOT = apiRootFrom(API_PARAM);
+const BASE = API_ROOT === null ? null : `${API_ROOT}/api/v1`;
 const PAGE_SIZE = 12;
 const LAST_ORDER_KEY = 'food-market:last-order';
 
@@ -20,6 +38,14 @@ const $ = (id) => document.getElementById(id);
  * Never throws: network failures come back as an error result too.
  */
 async function callApi(path, { method = 'GET', body, token } = {}) {
+  if (BASE === null) {
+    return {
+      ok: false,
+      status: 0,
+      code: 'BAD_API_ADDRESS',
+      message: `"?api=${API_PARAM}" isn't a web address. Use something like ?api=http://localhost:3002`,
+    };
+  }
   let res;
   try {
     res = await fetch(BASE + path, {
