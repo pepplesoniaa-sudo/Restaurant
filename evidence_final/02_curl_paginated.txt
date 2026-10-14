@@ -1,0 +1,60 @@
+EVIDENCE 02 — CURL HITTING THE LIVE URL, PAGINATED
+Captured: 2026-10-14 19:26 +01:00 (Africa/Lagos)
+Public deployment only. GET only.
+
+COMMAND a
+  curl.exe -s -i "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=3&offset=0"
+OUTPUT
+  HTTP/1.1 200 OK
+  Access-Control-Allow-Origin: *
+  Access-Control-Expose-Headers: Retry-After
+  Age: 0
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/json
+  Date: Wed, 14 Oct 2026 18:26:18 GMT
+  Server: Vercel
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Matched-Path: /api/v1/restaurants
+  X-Vercel-Cache: MISS
+  X-Vercel-Id: cpt1::iad1::cbqkp-1792002376369-ead9a2919da9
+  Transfer-Encoding: chunked
+
+  {"data":[{"id":"cmupxgnbw000awjbkwjsij0jw","name":"Abosede's Kitchen","area":"Ilupeju","cuisine":"Nigerian","rating":3.9,"deliveryFee":200000},{"id":"cmupxgnbx001bwjbkv6jho1ov","name":"Abosede's Kitchen","area":"Ojodu","cuisine":"Grills","rating":4.7,"deliveryFee":185000},{"id":"cmupxgnbz004uwjbksqs8z8bs","name":"Adaobi's Kitchen","area":"Victoria Island","cuisine":"Seafood","rating":3.4,"deliveryFee":55000}],"meta":{"total":200,"limit":3,"offset":0,"hasMore":true}}
+
+COMMAND b (page two)
+  curl.exe -s -i "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=3&offset=3"
+OUTPUT
+  HTTP/1.1 200 OK
+  Access-Control-Allow-Origin: *
+  Access-Control-Expose-Headers: Retry-After
+  Age: 0
+  Cache-Control: public, max-age=0, must-revalidate
+  Content-Type: application/json
+  Date: Wed, 14 Oct 2026 18:26:17 GMT
+  Server: Vercel
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+  X-Matched-Path: /api/v1/restaurants
+  X-Vercel-Cache: MISS
+  X-Vercel-Id: cpt1::iad1::697qd-1792002376297-6980c6178a4f
+  Transfer-Encoding: chunked
+
+  {"data":[{"id":"cmupxgnbz003ywjbkv978vana","name":"Adaugo's Eatery","area":"Ojodu","cuisine":"Grills","rating":null,"deliveryFee":270000},{"id":"cmupxgnbx0017wjbkmfargwi0","name":"Adebayo's Kitchen","area":"Apapa","cuisine":"Nigerian","rating":4.5,"deliveryFee":0},{"id":"cmupxgnbv0000wjbkw3czvl7i","name":"Adedayo's Eatery","area":"Lekki Phase 1","cuisine":"Continental","rating":4.1,"deliveryFee":205000}],"meta":{"total":200,"limit":3,"offset":3,"hasMore":true}}
+
+COMMAND c (clamp to 100)
+  curl.exe -s -i "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=5000"
+  (only the status line and the meta object shown below)
+OUTPUT
+  STATUS LINE: HTTP/1.1 200 OK
+  META ONLY  : {"total":200,"limit":100,"offset":0,"hasMore":true}
+
+ENVELOPE OBSERVED (both pages)
+  data: array of restaurant objects (id, name, area, cuisine, rating, deliveryFee)
+  meta: total, limit, offset, hasMore
+
+PAGE COMPARISON (first id only)
+  page one (offset=0) first id : cmupxgnbw000awjbkwjsij0jw
+  page two (offset=3) first id : cmupxgnbz003ywjbkv978vana
+  -> Different ids, so page two differs from page one. (CONFIRMED)
+
+CLAMP
+  Requested limit=5000, server returned limit=100. The clamp to 100 is working. (CONFIRMED)

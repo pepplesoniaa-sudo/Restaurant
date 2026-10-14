@@ -1,0 +1,54 @@
+EVIDENCE 04 — CONSUMER DISPLAYING DATA FROM THE LIVE API
+Captured: 2026-10-14 19:26 +01:00 (Africa/Lagos)
+
+PART A — WHERE THE API ADDRESS COMES FROM (consumer/app.js, line numbers only)
+  line 5   comment: "the live one by default, or ?api=http://localhost:3002 to try a local server"
+  line 7   const LIVE_API = 'https://restaurant-api-iota-eight.vercel.app'
+  line 8   const API_PARAM = new URLSearchParams(location.search).get('api')
+  line 16  if (param === null || param.trim() === '') return LIVE_API;   <- default
+  line 26  const API_ROOT = apiRootFrom(API_PARAM)
+  line 27  const BASE = API_ROOT === null ? null : `${API_ROOT}/api/v1`
+  line 46  error message text containing "localhost:3002" (a hint string, not the default)
+
+  FINDINGS
+  - The default address is the LIVE API (line 7 / line 16). It does NOT default to localhost. (CONFIRMED from reading)
+  - "localhost" appears only at lines 5, 12 and 46, and all three are comments / an error hint,
+    not the default base URL. (CONFIRMED from reading)
+  - ?api= DOES override the default: line 8 reads the ?api= query parameter and line 26 uses it
+    (line 16 falls back to LIVE_API only when ?api= is absent or blank). (CONFIRMED from reading)
+
+PART B — CONSUMER PAGE SERVED
+COMMAND
+  curl.exe -s -i https://restaurant-consumer.vercel.app
+STATUS
+  HTTP/1.1 200 OK   (Server: Vercel; Content-Type: text/html; X-Vercel-Cache: HIT)
+  Body is the "Food Market" page (title: Food Market). (CONFIRMED)
+
+PART C — CORS FROM THE LIVE API FOR THE CONSUMER ORIGIN
+COMMAND
+  curl.exe -s -i -H "Origin: https://restaurant-consumer.vercel.app" "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1"
+RELEVANT RESPONSE HEADERS
+  HTTP/1.1 200 OK
+  Access-Control-Allow-Origin: *
+  Access-Control-Expose-Headers: Retry-After
+  Content-Type: application/json
+  {"data":[{"id":"cmupxgnbw000awjbkwjsij0jw","name":"Abosede's Kitchen","area":"Ilupeju","cuisine":"Nigerian","rating":3.9,"deliveryFee":200000}],"meta":{"total":200,"limit":1,"offset":0,"hasMore":true}}
+
+  FINDING: Access-Control-Allow-Origin is "*", which allows the consumer origin
+  https://restaurant-consumer.vercel.app (a wildcard allows any origin). (CONFIRMED)
+
+STATED PLAINLY
+  I cannot see a browser, so list, filter and next-page behaviour in the running page is
+  UNVERIFIED. The HTML and JS are served and the API is CORS-open, but I cannot observe the
+  rendered list changing when the filter is used or when "Next" is clicked.
+
+SCREENSHOT STEPS FOR YOU (I cannot take screenshots)
+  1. Open https://restaurant-consumer.vercel.app in Chrome/Edge.
+  2. Press F12, click the "Network" tab.
+  3. Reload the page (F5). The restaurant list should render under "1. Choose a restaurant".
+  4. Type a filter, e.g. Area = Yaba, click "Search".
+  5. Click "Next ->" under the restaurant list.
+  6. Capture the screen at the moment when: (a) the restaurant list is visible, (b) the address
+     bar shows restaurant-consumer.vercel.app, and (c) at least one Network request to
+     restaurant-api-iota-eight.vercel.app is visible in the Network tab.
+  Optional filter in the Network tab: type "restaurant-api-iota-eight" in its filter box.

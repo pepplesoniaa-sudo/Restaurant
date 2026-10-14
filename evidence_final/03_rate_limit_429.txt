@@ -1,0 +1,59 @@
+EVIDENCE 03 — THE 429 RESPONSE AFTER EXCEEDING THE RATE LIMIT
+Captured: 2026-10-14 19:26–19:30 +01:00 (Africa/Lagos)
+Burst approved by owner before sending. GET only, one request at a time.
+
+PART A — CONFIG (apps/api/src/config/rate-limit.ts, line numbers)
+  limit          : 100 requests per client address per window   (line 5)  (CONFIRMED)
+  windowSeconds  : 60 seconds                                    (line 7)  (CONFIRMED)
+  trustedProxies : 1                                             (line 13) (CONFIRMED)
+  key used       : the client ADDRESS (IP). Comments lines 9-11; and apps/api/src/lib/rate-limit.ts
+                   clientAddress() reads X-Forwarded-For and takes the entry `trustedProxies`
+                   from the end (1 entry = the nearest proxy's client address). (CONFIRMED)
+                   -> Fixed-window, 100 per 60s, keyed on IP.
+
+PART B — HOW THE 429 IS PRODUCED (apps/api/src/lib/rate-limit.ts)
+  - decide(window, limit): count <= limit -> allowed; else refused (lines 35-39).
+  - retryAfterSeconds = max(1, ceil(retryAfterMs / 1000)), never 0 (line 38).
+  - createRateLimiter(...) returns 429 via apiError(429, 'RATE_LIMITED', message,
+    { 'Retry-After': String(wait) }) — body at lines 63-68, header at line 67. (CONFIRMED)
+  - RETRY-AFTER HEADER: YES, set to whole seconds (line 67). (CONFIRMED)
+  - Counting store is PostgreSQL in production (comment lines 4-6).
+
+PART C — BURST RESULT
+  URL   : https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1
+  Plan  : one request at a time, up to 110 (limit 100 + 10), stop at first 429.
+  Actual: 110 requests, EVERY one returned 200. NO 429 was observed.
+  Burst window: START 2026-10-14 19:28:06 +01:00  ->  END 2026-10-14 19:29:37 +01:00 (about 91s).
+
+  Per-request status codes (all 200):
+    req 1..110: 200   (no non-200 of any kind; loop reached its 110 cap and stopped)
+
+  HONEST READING (no claim that rate limiting "works"):
+  - No 429 appeared, so I cannot show the 429 headers/body from real traffic.
+  - Likely reason (INFERRED): the run took ~91 seconds for 110 requests
+    (~0.83s per request). The window is 60s, so those 110 requests were spread across MORE THAN
+    ONE 60-second window; no single window ever exceeded 100, so nothing was refused.
+  - Also possible (INFERRED, cannot verify from here): the limit is per serverless instance and
+    Vercel may split requests across instances, so a single address's count may not reach 100.
+  - I did NOT exceed the agreed cap of 110. As instructed, no 429 is reported and rate limiting
+    is NOT claimed to work.
+
+  AFTER THE WINDOW (wait stated): waited 65s from 19:29:47 to 19:30:52 so the 60s window had passed.
+  One request after the wait:
+    HTTP/1.1 200 OK ... {"meta":{"total":200,"limit":1,"offset":0,"hasMore":true}}
+    -> 200 again. (CONFIRMED)
+
+POWERSHELL LOOP FOR YOU TO SCREENSHOT (the same loop I ran; run it yourself for a screenshot):
+  $url = "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1"
+  for ($i = 1; $i -le 110; $i++) {
+    $r = curl.exe -s -o NUL -w "%{http_code}" $url
+    Write-Output ("req {0}: {1}" -f $i, $r)
+    if ($r -eq "429") {
+      Write-Output "--- 429 headers and body ---"
+      curl.exe -s -i $url
+      break
+    }
+  }
+  TIP to actually reach the limit: paste the loop into a terminal and, to make it faster than the
+  window, run several copies at once, or send the requests as fast as possible; 110 sequential
+  requests at ~0.8s each took ~91s and never tripped a 60s window.

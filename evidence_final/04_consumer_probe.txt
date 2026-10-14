@@ -1,0 +1,171 @@
+================================================================================
+04_consumer_probe.txt — Step 1: Consumer read + live probes
+Working folder: C:\dev\Restaurant  (CONFIRMED, git toplevel C:/dev/Restaurant)
+================================================================================
+
+1a. consumer\app.js — where the API address comes from (line numbers)
+--------------------------------------------------------------------------------
+- Line 7  : const LIVE_API = 'https://restaurant-api-iota-eight.vercel.app';
+            -> the DEFAULT is the LIVE api.
+- Line 8  : const API_PARAM = new URLSearchParams(location.search).get('api');
+            -> the ?api= override is read here.
+- Lines 15-24: function apiRootFrom(param)
+            - line 16: null/empty -> returns LIVE_API
+            - line 18: adds http:// if no scheme
+            - line 20: returns new URL(...).origin (strips trailing /api/v1, path etc.)
+            - line 22: returns null if not a web address
+- Line 26 : const API_ROOT = apiRootFrom(API_PARAM);
+- Line 27 : const BASE = API_ROOT === null ? null : `${API_ROOT}/api/v1`;
+- Line 28 : const PAGE_SIZE = 12;
+
+Filter request (loadRestaurants), lines 147-158:
+- Line 148: reads FormData of #restaurant-filters
+- Lines 150-157: GET /restaurants with query:
+      area      (text, trimmed)         line 151
+      cuisine   (text, trimmed)         line 152
+      sort      (select)                line 153
+      order     (select)                line 154
+      limit     = PAGE_SIZE (12)        line 155
+      offset    = restaurants.offset    line 156
+- query() at lines 80-84 drops empty/undefined values.
+
+Next page (restaurants-next click), lines 403-406:
+- Line 404: restaurants.offset += PAGE_SIZE  (12)
+- Line 405: void loadRestaurants()  -> re-sends the same query with the new offset.
+Previous page: line 400, offset = max(0, offset - PAGE_SIZE).
+Search submit: lines 394-398, resets offset = 0 then loadRestaurants().
+
+Menu requests: lines 212-221 use /restaurants/{id}/menu with category, sort, order,
+limit (12), offset. Menu pager: lines 412-419.
+
+Order POST body: lines 310-317 -> { restaurantId, customer:{name,phone,area}, items:[{menuItemId,quantity}] }.
+Tracking: line 358 GET /orders/{orderId} with Authorization: Bearer <token>.
+
+Default form values (consumer\index.html):
+- sort select default = "name" (line 34), order select default = "asc" (line 42).
+- area/cuisine are empty text inputs (lines 29-30) -> dropped from the query string.
+
+Therefore the three requests the page actually sends for the restaurant list:
+  page 1 : ?sort=name&order=asc&limit=12&offset=0
+  filter : ?area=Yaba&sort=name&order=asc&limit=12&offset=0
+  page 2 : ?sort=name&order=asc&limit=12&offset=12
+
+================================================================================
+1b. curl.exe -s -i https://restaurant-consumer.vercel.app
+================================================================================
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Age: 249456
+Cache-Control: public, max-age=0, must-revalidate
+Content-Disposition: inline
+Content-Length: 4843
+Content-Type: text/html; charset=utf-8
+Date: Wed, 14 Oct 2026 19:13:46 GMT
+Etag: "4acd441327d89b4b41774c14d37754a1"
+Last-Modified: Sun, 11 Oct 2026 21:56:09 GMT
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Vercel-Cache: HIT
+X-Vercel-Id: cpt1::hkxxt-1792005226313-48fcbf32ba94
+
+<body contains>: line 16  <script type="module" src="app.js"></script>
+RESULT: STATUS 200. HTML DOES reference app.js. (CONFIRMED)
+
+================================================================================
+1c. CORS preflight/origin probe
+curl.exe -s -i -H "Origin: https://restaurant-consumer.vercel.app" \
+  "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1"
+================================================================================
+HTTP/1.1 200 OK
+Access-Control-Allow-Origin: *
+Access-Control-Expose-Headers: Retry-After
+Age: 0
+Cache-Control: public, max-age=0, must-revalidate
+Content-Type: application/json
+Date: Wed, 14 Oct 2026 19:13:57 GMT
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+X-Matched-Path: /api/v1/restaurants
+X-Vercel-Cache: MISS
+X-Vercel-Id: cpt1::iad1::8zxrf-1792005232715-80f7c8b17fc3
+Transfer-Encoding: chunked
+
+{"data":[{"id":"cmupxgnbw000awjbkwjsij0jw","name":"Abosede's Kitchen","area":"Ilupeju","cuisine":"Nigerian","rating":3.9,"deliveryFee":200000}],"meta":{"total":200,"limit":1,"offset":0,"hasMore":true}}
+RESULT: Access-Control-Allow-Origin: *  (CONFIRMED). Retry-After is exposed.
+
+================================================================================
+1d. Replay of the exact requests the page sends
+================================================================================
+
+(page 1) ?sort=name&order=asc&limit=12&offset=0   -> STATUS 200
+{"data":[
+ {"id":"cmupxgnbw000awjbkwjsij0jw","name":"Abosede's Kitchen","area":"Ilupeju","cuisine":"Nigerian","rating":3.9,"deliveryFee":200000},
+ {"id":"cmupxgnbx001bwjbkv6jho1ov","name":"Abosede's Kitchen","area":"Ojodu","cuisine":"Grills","rating":4.7,"deliveryFee":185000},
+ {"id":"cmupxgnbz004uwjbksqs8z8bs","name":"Adaobi's Kitchen","area":"Victoria Island","cuisine":"Seafood","rating":3.4,"deliveryFee":55000},
+ {"id":"cmupxgnbz003ywjbkv978vana","name":"Adaugo's Eatery","area":"Ojodu","cuisine":"Grills","rating":null,"deliveryFee":270000},
+ {"id":"cmupxgnbx0017wjbkmfargwi0","name":"Adebayo's Kitchen","area":"Apapa","cuisine":"Nigerian","rating":4.5,"deliveryFee":0},
+ {"id":"cmupxgnbv0000wjbkw3czvl7i","name":"Adedayo's Eatery","area":"Lekki Phase 1","cuisine":"Continental","rating":4.1,"deliveryFee":205000},
+ {"id":"cmupxgnbx0022wjbk57q5h0hb","name":"Adeyemo's Kitchen","area":"Ikeja GRA","cuisine":"Seafood","rating":3.5,"deliveryFee":55000},
+ {"id":"cmupxgnbw000iwjbkgn5avuam","name":"Afolabi's Kitchen","area":"Maryland","cuisine":"Nigerian","rating":3.3,"deliveryFee":70000},
+ {"id":"cmupxgnbw000mwjbkudl1ly8b","name":"Afolabi's Kitchen","area":"Magodo","cuisine":"Seafood","rating":4.4,"deliveryFee":65000},
+ {"id":"cmupxgnbw000jwjbk23pepbi2","name":"Agboola's Kitchen","area":"Gbagada","cuisine":"Pastries","rating":null,"deliveryFee":85000},
+ {"id":"cmupxgnc0005bwjbkaq55d6x5","name":"Agboola's Kitchen","area":"Victoria Island","cuisine":"Seafood","rating":5,"deliveryFee":0},
+ {"id":"cmupxgnbx001vwjbk6f3bw9ol","name":"Ajah Continental","area":"Ajah","cuisine":"Continental","rating":2.6,"deliveryFee":265000}
+],"meta":{"total":200,"limit":12,"offset":0,"hasMore":true}}
+STATUS: 200
+
+(filter: area=Yaba) ?area=Yaba&sort=name&order=asc&limit=12&offset=0   -> STATUS 200
+{"data":[
+ {"id":"cmupxgnbz004owjbk3e6e10g1","name":"Habiba's Eatery","area":"Yaba","cuisine":"Seafood","rating":null,"deliveryFee":245000},
+ {"id":"cmupxgnbw000twjbkklt41s3f","name":"Makuachukwu's Kitchen","area":"Yaba","cuisine":"Grills","rating":4.1,"deliveryFee":50000},
+ {"id":"cmupxgnbz003zwjbkvftf9v3y","name":"Mama Ayebatari","area":"Yaba","cuisine":"Pastries","rating":4.1,"deliveryFee":140000},
+ {"id":"cmupxgnby002vwjbkat0wh3ke","name":"Mama Chimamanda","area":"Yaba","cuisine":"Grills","rating":null,"deliveryFee":235000},
+ {"id":"cmupxgnbw000vwjbkcv7n2lvx","name":"Oladimeji's Kitchen","area":"Yaba","cuisine":"Chinese","rating":3.1,"deliveryFee":205000},
+ {"id":"cmupxgnbz004fwjbkoeodr03r","name":"Yaba Continental","area":"Yaba","cuisine":"Continental","rating":4.6,"deliveryFee":300000},
+ {"id":"cmupxgnc0005hwjbke0gn4ynd","name":"Yaba Pastries","area":"Yaba","cuisine":"Pastries","rating":4.5,"deliveryFee":80000}
+],"meta":{"total":7,"limit":12,"offset":0,"hasMore":false}}
+STATUS: 200   (real value from data: area=Yaba; total 7)
+
+(filter: cuisine=Seafood) ?cuisine=Seafood&sort=name&order=asc&limit=12&offset=0  -> STATUS 200
+meta: {"total":35,"limit":12,"offset":0,"hasMore":true}
+(first id cmupxgnbz004uwjbksqs8z8bs)  (real value from data: cuisine=Seafood)
+
+(page 2) ?sort=name&order=asc&limit=12&offset=12   -> STATUS 200
+{"data":[
+ {"id":"cmupxgnby0035wjbkrwcs4jyh","name":"Ajah Continental","area":"Ajah",...},
+ {"id":"cmupxgnbx001iwjbkwjhzhdrl","name":"Ajah Seafood","area":"Ajah",...},
+ {"id":"cmupxgnbz003uwjbkyayt41k4","name":"Akunna's Eatery",...},
+ {"id":"cmupxgnbw0006wjbkas22wkkw","name":"Alade's Eatery",...},
+ {"id":"cmupxgnbx0010wjbkpc0dab8v","name":"Amaechi's Kitchen",...},
+ {"id":"cmupxgnby002bwjbk630feeon","name":"Amaechi's Kitchen",...},
+ {"id":"cmupxgnbw000qwjbkrzakq5qp","name":"Aminat's Kitchen",...},
+ {"id":"cmupxgnbz004cwjbkleimh7wj","name":"Anthony Nigerian",...},
+ {"id":"cmupxgnbw000uwjbkew98jww5","name":"Anthony Seafood",...},
+ {"id":"cmupxgnbx001mwjbkomivoxd5","name":"Apapa Nigerian",...},
+ {"id":"cmupxgnbx0023wjbkrz7kzm44","name":"Apapa Seafood",...},
+ {"id":"cmupxgnbx001pwjbk5q2i1uzs","name":"Aremu's Kitchen",...}
+],"meta":{"total":200,"limit":12,"offset":12,"hasMore":true}}
+STATUS: 200
+
+PAGE 2 DIFFERS FROM PAGE 1 (ids only):
+ page 1 ids: cmupxgnbw000awjbkwjsij0jw, cmupxgnbx001bwjbkv6jho1ov, cmupxgnbz004uwjbksqs8z8bs, ...
+ page 2 ids: cmupxgnby0035wjbkrwcs4jyh, cmupxgnbx001iwjbkwjhzhdrl, cmupxgnbz003uwjbkyayt41k4, ...
+ No id appears on both pages. CONFIRMED.
+
+================================================================================
+1e. UNVERIFIED on screen
+================================================================================
+I cannot see a rendered page, so the LIST, FILTER and NEXT PAGE as shown ON SCREEN
+are UNVERIFIED. Only the underlying HTTP requests above are CONFIRMED.
+
+Exact screenshot steps (save as evidence_final\04_consumer_probe.txt and .png):
+ 1. Open https://restaurant-consumer.vercel.app in a browser.
+ 2. Press F12 to open DevTools; click the "Network" tab.
+ 3. Press F5 to reload; the first call you should see is to
+    restaurant-api-iota-eight.vercel.app/api/v1/restaurants?...
+ 4. Confirm the restaurant cards are listed ("Food Market" page, section 1).
+ 5. Type "Yaba" in the Area box and click Search; watch a new request appear.
+ 6. Click "Next ->"; watch the request go to ...&offset=12.
+ 7. Screenshot with the browser ADDRESS BAR VISIBLE and at least one request to
+    restaurant-api-iota-eight.vercel.app visible in the Network list.

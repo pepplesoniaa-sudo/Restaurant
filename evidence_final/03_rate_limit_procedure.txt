@@ -1,0 +1,51 @@
+================================================================================
+03_rate_limit_procedure.txt — Step 2: producing the HTTP 429 with headers
+I did NOT send a burst myself (per instruction). Run these yourself.
+================================================================================
+
+Retry-After line (apps\api\src\lib\rate-limit.ts):
+- Line 67 : { 'Retry-After': String(wait) }        <-- header is SET here
+- Line 62 : const wait = decision.retryAfterSeconds;
+- Line 38 : retryAfterSeconds = Math.max(1, Math.ceil(window.retryAfterMs / 1000))  (computed)
+- apiError(429, 'RATE_LIMITED', ...) at lines 63-68 builds the error envelope.
+Config (apps\api\src\config\rate-limit.ts): limit 100, windowSeconds 60, trustedProxies 1.
+Wired in apps\api\src\proxy.ts line 11 (createRateLimiter), runs for /api/:path* (line 24).
+
+WINDOW: 60 seconds. If the follow-up curl returns 200, the 60s window has already
+passed; repeat the whole burst and then immediately run the curl.
+
+--- PowerShell 5 steps ---
+
+Step 1. Burst (100 allowed -> 200, then the rest -> 429). Paste and run:
+
+  $url = "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1"
+  $n = 200
+  $jobs = 1..$n | ForEach-Object {
+    [powershell]::Create().AddScript({
+      param($u) try {
+        (Invoke-WebRequest -Uri $u -UseBasicParsing -TimeoutSec 30).StatusCode
+      } catch { [int]$_.Exception.Response.StatusCode }
+    }).AddArgument($url)
+  }
+  # OR use the same runspace approach previously used (100x200 + 100x429).
+  # Run them and tally the status codes:
+  $jobs | ForEach-Object { $_.BeginInvoke() | Out-Null }
+  Start-Sleep -Seconds 5
+  $results = $jobs | ForEach-Object { $_.EndInvoke($_.BeginInvoke()) }  # adapt to your script
+  $results | Group-Object | Select-Object Count, Name
+
+  Expect: one group "200" and one group "429" (counts summing to 200).
+
+Step 2. IMMEDIATELY after (within the 60s window) run this single request:
+
+  curl.exe -s -i "https://restaurant-api-iota-eight.vercel.app/api/v1/restaurants?limit=1"
+
+Step 3. Screenshot the output showing ALL THREE:
+  - the "HTTP/1.1 429" status line,
+  - the "Retry-After: <n>" response header,
+  - the JSON error body (code RATE_LIMITED, message "Too many requests; try again in <n> seconds").
+  Save as evidence_final\03b_rate_limit_429_retry_after.png.
+  Also save the burst tally (200 vs 429) as evidence_final\03a_rate_limit_burst_200_vs_429.png.
+
+NOTE: Access-Control-Expose-Headers: Retry-After is returned (CONFIRMED in the 1c probe),
+so the browser client can read it, matching consumer\app.js line 71.

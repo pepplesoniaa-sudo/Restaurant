@@ -1,0 +1,25 @@
+EVIDENCE 01 — LIVE API URLS
+Captured: 2026-10-14 19:26 +01:00 (Africa/Lagos)
+Public deployment target only. GET requests only.
+
+PRODUCTION API URL : https://restaurant-api-iota-eight.vercel.app
+CONSUMER URL       : https://restaurant-consumer.vercel.app
+
+COMMAND 1
+  curl.exe -s -o NUL -w "%{http_code}" "https://restaurant-api-iota-eight.vercel.app/api/v1"
+OUTPUT
+  200
+
+COMMAND 2
+  curl.exe -s -o NUL -w "%{http_code}" "https://restaurant-consumer.vercel.app"
+OUTPUT
+  200
+
+RESULT: Both answer 200 with no login and no redirect. No 302 -> Deployment Protection is NOT on. (CONFIRMED)
+
+COMMAND 3
+  findstr /i /n "restaurant-api-iota-eight.vercel.app" README.md
+OUTPUT
+  63:| The API              | https://restaurant-api-iota-eight.vercel.app/api/v1 | `restaurant-api`              |
+
+RESULT: The string appears in README.md on line 63. (CONFIRMED)

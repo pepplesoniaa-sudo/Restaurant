@@ -1,0 +1,139 @@
+================================================================================
+05_git_readiness.txt — Step 3: commit the safe change only + push readiness
+Working folder: C:\dev\Restaurant  (CONFIRMED)
+================================================================================
+
+--- git status ---
+On branch main
+Untracked files:
+	.agents/skills/neon-postgres/
+	.agents/skills/neon/
+	.claude/
+	apps/api/eslint.config.mjs
+	apps/api/vitest.config.ts
+	evidence_final/
+	skills-lock.json
+nothing added to commit but untracked files present
+
+--- git diff -- .gitignore ---
+(no output)  -> .gitignore is UNCHANGED from HEAD. There is NO modified tracked file.
+
+--- git ls-files | findstr /i ".env" ---
+.env.example
+(only .env.example is tracked among env files)
+
+--- git log --all --oneline -- .env .env.local ---
+(no output)  -> no .env or .env.local has EVER been committed. CONFIRMED.
+
+--- git show --stat HEAD ---
+commit 605ad7847dd66765dfcacf70a3f9ad39362066e8
+Author: Sonia Pepple <pepplesoniaa@gmail.com>
+Date:   Wed Oct 14 19:12:47 2026 +0100
+    Ignore fix_report
+ .gitignore | 2 ++
+ 1 file changed, 2 insertions(+)
+
+--- git show HEAD -- .gitignore (the diff) ---
+@@ -32,3 +32,5 @@ coverage/
+ *.tsbuildinfo
+ 
+ .vercel
++
++fix_report/
+
+DECISION: The safe change ("Ignore fix_report") is ALREADY COMMITTED as HEAD
+(605ad78), made at 19:12:47 today — one minute before this run started.
+The precondition "the diff adds only fix_report/ and .gitignore is the only
+modified tracked file" is therefore NOT met (nothing is modified). Per the
+instructions I did NOT run `git add` / `git commit`. No commit was created.
+
+--- Branch / remote map ---
+git remote -v:
+  origin  https://github.com/pepplesoniaa-sudo/Restaurant.git (fetch)
+           https://github.com/pepplesoniaa-sudo/Restaurant.git (push)
+git branch -a:
+  * main
+    deploy/vercel
+    remotes/origin/HEAD -> origin/deploy/vercel
+    remotes/origin/deploy/vercel
+    remotes/origin/main
+git rev-parse HEAD          = 605ad78
+git rev-parse origin/main   = 615e7ec   (5 commits behind HEAD)
+git rev-parse origin/deploy/vercel = 41689fe (older, an ancestor of origin/main)
+
+git status -sb:  ## main        (local main has NO upstream configured)
+
+--- Unpushed commits (git log origin/main..HEAD --oneline) ---
+605ad78 Ignore fix_report
+3359bea Seed in bulk so it works against a remote database; document deploying
+b9a470c Accept ?api= without http:// in the consumer
+45df54e Add npm run consumer and fix how the README says to open the page
+1cf2f11 Remove the API address and status line from the consumer's header
+
+--- git diff origin/main..HEAD --name-only ---
+.gitignore
+README.md
+consumer/app.js
+consumer/index.html
+package.json
+packages/db/seed/seed.ts
+
+--- git diff origin/main..HEAD --stat ---
+ .gitignore               |   2 +
+ README.md                |  43 +++++++--
+ consumer/app.js          |  39 +++++---
+ consumer/index.html      |   4 -
+ package.json             |   1 +
+ packages/db/seed/seed.ts | 235 +++++++++++++++++++++++++++++++++----------------
+ 6 files changed, 228 insertions(+), 96 deletions(-)
+
+--- SECRET SCAN of unpushed content ---
+git grep -n -i -E "postgres(ql)?://[^ ]*:[^ ]*@|neondb_owner|npg_" HEAD
+  HIT: HEAD:.env.example:5
+       (value is the documented localhost sample:
+        postgresql://<user>:<pw>@localhost:5432/restaurant  — user and password are
+        both the literal word "postgres", pointed at localhost. This is the standard
+        .env.example placeholder, tracked on purpose, NOT a real credential.)
+
+git diff origin/main..HEAD | findstr /i "postgresql:// postgres:// neondb_owner npg_ sk_live sk- api_key password"
+  (no output)  -> the 5 unpushed commits introduce NO secret string.
+
+--- fix_report/ (gitignored, NOT pushable) ---
+git check-ignore -v fix_report  ->  .gitignore:36:fix_report/  fix_report   (IGNORED)
+git status does NOT list fix_report/ as untracked. It CANNOT be pushed.
+Files on disk matching postgres:// | neondb_owner | npg_ (path + line only, no text):
+  fix_report\env_line.txt            line 2
+  fix_report\step1_env_dburl.txt     line 2
+  fix_report\step1_env_head.txt      line 2
+  fix_report\step4_env_after.txt     line 2
+  fix_report\summary.md              line 28
+  -> these likely hold a real DATABASE_URL; they are local-only, but they are on
+     disk. Supports the rotation in Step 7 and deleting fix_report afterwards.
+
+--- Untracked files and why each is NOT committed ---
+.agents/skills/neon/            tooling skill docs; not the approved change, left untracked
+.agents/skills/neon-postgres/   tooling skill docs; not the approved change, left untracked
+.claude/                        agent tooling dir; not the approved change, left untracked
+apps/api/eslint.config.mjs      new config file; outside the .gitignore-only change
+apps/api/vitest.config.ts       new config file; outside the .gitignore-only change
+evidence_final/                 outputs of THIS run; intentionally not committed
+skills-lock.json                tooling lockfile; not the approved change, left untracked
+
+--- PUSH: do NOT run yet. After you say yes: ---
+Local main has no upstream. Primary command:
+
+    git push origin main
+
+IMPORTANT AMBIGUITY (surface, do not guess — AGENTS.md §7):
+The GitHub default branch is origin/deploy/vercel (origin/HEAD), while local work
+is on main (5 ahead of origin/main). The live API already answers 200, so a deploy
+exists — but we cannot see the Vercel dashboard to know which branch Production
+tracks. If Vercel Production Branch is "main", `git push origin main` is enough.
+If it is "deploy/vercel", also fast-forward it:
+
+    git push origin main:deploy/vercel
+
+--- Confirm Vercel redeployed (owner runs, cannot be seen from here) ---
+    npx vercel ls restaurant-api
+  Expect the NEWEST row under the Production column to read "Ready".
+  (This requires Vercel CLI login; not run here.)
