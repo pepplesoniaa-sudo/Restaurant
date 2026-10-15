@@ -1190,3 +1190,5 @@ consumer/            Example client: a static web page that calls the live API
 **Stack:** Next.js, TypeScript (strict), Prisma, PostgreSQL, Node.js 22 LTS.
 
 **Not in scope yet:** sign-in or accounts, payments, a mobile app, delivery tracking.
+
+Tested a pull request from a fresh clone.
